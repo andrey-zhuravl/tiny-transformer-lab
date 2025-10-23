@@ -7,7 +7,7 @@ from typing import Dict
 
 import pandas as pd
 
-from ttlab.config import DatasetFormat
+from ttlab.config.models import DatasetFormat
 
 
 def _read_any(path: Path) -> pd.DataFrame:

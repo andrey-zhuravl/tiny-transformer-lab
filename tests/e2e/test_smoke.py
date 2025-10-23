@@ -5,15 +5,16 @@ from pathlib import Path
 import yaml
 from typer.testing import CliRunner
 
+from ttlab.paths import get_project_path
 from ttlab.cli import app
 
 
 def test_smoke_command(tmp_path):
     runner = CliRunner()
-    base_config = yaml.safe_load(Path("conf/base.yaml").read_text())
+    base_config = yaml.safe_load(get_project_path("conf/base.yaml").read_text())
 
     dataset_path = tmp_path / "dataset.jsonl"
-    shutil.copy(Path("tests/resources/sample.jsonl"), dataset_path)
+    shutil.copy(get_project_path("tests/resources/sample.jsonl"), dataset_path)
 
     base_config["paths"]["data_raw"] = str(tmp_path / "data_raw")
     base_config["paths"]["data_processed"] = str(tmp_path / "data_processed")

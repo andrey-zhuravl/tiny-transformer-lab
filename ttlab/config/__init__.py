@@ -1,6 +1,6 @@
 """Configuration helpers for Tiny Transformer Lab."""
 
-from .models import (
+from ttlab.config.models import (
     DataConfig,
     DatasetField,
     MLflowConfig,

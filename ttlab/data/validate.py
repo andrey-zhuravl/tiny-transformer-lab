@@ -9,7 +9,7 @@ from typing import Dict, Iterable, List
 import pandas as pd
 from pandas.api import types as ptypes
 
-from ttlab.config import DatasetField, DatasetFormat
+from ttlab.config.models import DatasetField, DatasetFormat
 
 
 class DatasetValidationError(RuntimeError):
@@ -53,11 +53,24 @@ class ValidationReport:
 
 
 def _load_dataframe(path: Path, data_format: DatasetFormat) -> pd.DataFrame:
-    if data_format == DatasetFormat.JSONL:
-        return pd.read_json(path, orient="records", lines=True)
-    if data_format == DatasetFormat.PARQUET:
-        return pd.read_parquet(path)
-    raise ValueError(f"Unsupported format: {data_format}")
+    if data_format is DatasetFormat.JSONL:
+        base = pd.read_json(path, lines=True)
+    elif data_format is DatasetFormat.CSV:
+        base = pd.read_csv(path)
+    elif data_format is DatasetFormat.PARQUET:
+        base = pd.read_parquet(path)
+    else:
+        raise ValueError(f"Unsupported format {data_format}")
+
+    # расплющить все вложенные dict-ы в dot-колонки
+    df = pd.json_normalize(base.to_dict(orient="records"))
+
+    # привести числовые поля схемы к int (nullable Int64)
+    for col in ("meta.seed", "meta.template_index"):
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int64")
+
+    return df
 
 
 def _dtype_matches(series: pd.Series, expected: str) -> bool:
@@ -73,7 +86,9 @@ def _dtype_matches(series: pd.Series, expected: str) -> bool:
     return True
 
 
-def validate_dataset(path: Path | str, schema: Iterable[DatasetField], data_format: DatasetFormat) -> ValidationReport:
+def validate_dataset(path: Path | str,
+                     schema: Iterable[DatasetField],
+                     data_format: DatasetFormat) -> ValidationReport:
     """Validate a dataset and return a :class:`ValidationReport`."""
 
     dataset_path = Path(path)

@@ -34,8 +34,13 @@ dev = [
 ]
 
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=65", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ttlab*"]
+exclude = ["tests*", "conf*", "specs*"]
 
 [tool.ruff]
 line-length = 100
@@ -44,5 +49,9 @@ line-length = 100
 line-length = 100
 
 [tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests/unit", "tests/integration", "tests/e2e"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
 addopts = "-ra"
-testpaths = ["tests"]

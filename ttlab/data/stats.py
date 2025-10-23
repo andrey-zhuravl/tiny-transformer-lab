@@ -7,7 +7,7 @@ from typing import Dict, Iterable, Optional
 
 import pandas as pd
 
-from ttlab.config import DatasetFormat
+from ttlab.config.models import DatasetFormat
 
 
 def _load_dataframe(path: Path, data_format: DatasetFormat) -> pd.DataFrame:

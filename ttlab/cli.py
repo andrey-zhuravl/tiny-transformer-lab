@@ -12,7 +12,7 @@ import yaml
 from rich.console import Console
 from rich.table import Table
 
-from ttlab.config import DatasetField, DatasetFormat, load_config
+from ttlab.config.models import DatasetField, DatasetFormat, load_config
 from ttlab.data import (
     DatasetValidationError,
     compute_stats,
@@ -109,7 +109,7 @@ def check(
 def data_validate(
     input_path: Path = typer.Option(..., "--in", help="Input dataset"),
     schema_path: Path = typer.Option(..., "--schema", help="Schema YAML"),
-    data_format: DatasetFormat = typer.Option(DatasetFormat.JSONL, "--format"),
+    data_format: DatasetFormat = typer.Option("--data-format", help="Schema YAML"),
 ) -> None:
     """Validate a dataset using a schema."""
 

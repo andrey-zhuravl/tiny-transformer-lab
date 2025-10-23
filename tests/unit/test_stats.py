@@ -1,6 +1,6 @@
 import pandas as pd
 
-from ttlab.config import DatasetFormat
+from ttlab.config.models import DatasetFormat
 from ttlab.data.stats import compute_stats
 
 

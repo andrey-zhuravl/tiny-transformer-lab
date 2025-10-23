@@ -2,7 +2,7 @@ import json
 
 import pandas as pd
 
-from ttlab.config import DatasetFormat
+from ttlab.config.models import DatasetField, DatasetFormat
 from ttlab.data.convert import convert_dataset
 
 

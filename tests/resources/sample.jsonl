@@ -1,3 +1,1 @@
-{"id": 1, "text": "hello world", "label": "greeting"}
-{"id": 2, "text": "tiny transformer", "label": "topic"}
-{"id": 3, "text": "lab tools", "label": "topic"}
+{"id":"train-lm-000000","meta":{"grammar_rev":"c24837e4288880876a45ac6c452b0b659db4681300290dc331879ad2a7db2311","seed":13,"split":"train","template_index":0},"task":"lm","text":"Bob found a key at the market."}

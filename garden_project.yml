@@ -13,3 +13,6 @@ paths:
   data: data/
 repo:
   vcs: git
+relations:
+    - mlops-homelab
+    - toy-lang-lab

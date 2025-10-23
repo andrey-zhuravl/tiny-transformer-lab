@@ -7,6 +7,8 @@ import yaml
 from typer.testing import CliRunner
 
 from ttlab.cli import app
+from ttlab.config.models import DatasetFormat
+from ttlab.paths import get_project_path
 
 
 @pytest.fixture()
@@ -52,8 +54,7 @@ def test_cli_init_creates_directories(tmp_path, runner):
 def test_cli_data_validate(tmp_path, runner):
     sample_jsonl = tmp_path / "sample.jsonl"
     pd.DataFrame({"id": [1], "text": ["ok"]}).to_json(sample_jsonl, orient="records", lines=True)
-    schema_path = Path("conf/data/sample_dataset.yaml")
-
+    schema_path = get_project_path("conf/data/sample_dataset.yaml")
     result = runner.invoke(
         app,
         [
@@ -62,8 +63,8 @@ def test_cli_data_validate(tmp_path, runner):
             str(sample_jsonl),
             "--schema",
             str(schema_path),
-            "--format",
-            "JSONL",
+            "--data-format",
+            DatasetFormat.JSONL,
         ],
     )
     assert result.exit_code == 0

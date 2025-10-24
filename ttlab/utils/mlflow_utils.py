@@ -1,10 +1,12 @@
-"""Lightweight utilities for optional MLflow logging."""
-
+"""MLflow helper utilities used across TTL modules."""
 from __future__ import annotations
 
 from contextlib import contextmanager
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Iterable, Mapping, Optional
+
+EXPERIMENT_NAME = "ttl-tokenizers"
 
 
 @dataclass(slots=True)
@@ -22,7 +24,7 @@ class _NoOpRun:
     def set_tags(self, tags: Mapping[str, Any]) -> None:  # pragma: no cover - trivial
         return
 
-    def log_artifact(self, path: str, artifact_path: Optional[str] = None) -> None:
+    def log_artifact(self, path: str, artifact_path: Optional[str] = None) -> None:  # pragma: no cover - trivial
         return
 
 
@@ -77,4 +79,45 @@ def mlflow_run(
         mlflow.end_run()
 
 
-__all__ = ["mlflow_run"]
+def log_tokenizer_run(
+    *,
+    run_name: str,
+    stats: Optional[Mapping[str, float]] = None,
+    params: Optional[Mapping[str, Any]] = None,
+    artifacts: Optional[Mapping[str, Any]] = None,
+) -> Optional[str]:
+    """Log metrics, params and artifacts to MLflow when the package is available."""
+
+    try:  # Import lazily so that MLflow remains optional in local setups.
+        import mlflow  # type: ignore
+    except Exception:
+        return None
+
+    mlflow.set_experiment(EXPERIMENT_NAME)
+    with mlflow.start_run(run_name=run_name) as active_run:  # type: ignore[attr-defined]
+        if stats:
+            for key, value in stats.items():
+                try:
+                    mlflow.log_metric(key, float(value))
+                except Exception:
+                    continue
+        if params:
+            for key, value in params.items():
+                try:
+                    mlflow.log_param(key, value)
+                except Exception:
+                    continue
+        if artifacts:
+            for name, payload in artifacts.items():
+                artifact_path = Path("tokenizer")
+                try:
+                    if isinstance(payload, (str, Path)):
+                        mlflow.log_artifact(str(payload), artifact_path=str(artifact_path))
+                    else:
+                        mlflow.log_dict(payload, str(artifact_path / f"{name}.json"))  # type: ignore[attr-defined]
+                except Exception:
+                    continue
+        return active_run.info.run_id  # type: ignore[attr-defined]
+
+
+__all__ = ["mlflow_run", "log_tokenizer_run", "EXPERIMENT_NAME"]

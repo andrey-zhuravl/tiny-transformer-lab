@@ -1,0 +1,18 @@
+name: spec-check
+on: [push, pull_request]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure B1 spec file exists
+        run: test -f spec/B1/tiny-transformer-lab.B1.spec.v2.json
+      - name: Validate stage and version
+        run: |
+          python - <<'PY'
+          import json
+          with open('spec/B1/tiny-transformer-lab.B1.spec.v2.json', 'r', encoding='utf-8') as fh:
+              data = json.load(fh)
+          assert data.get('version') == 'v2', 'Spec version must be v2'
+          assert data.get('stage') == 'B1', 'Spec stage must be B1'
+          PY

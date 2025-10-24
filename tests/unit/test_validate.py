@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from textwrap import dedent
 
 import pytest
 
@@ -16,8 +17,7 @@ from ttlab.core.validate import (
 @pytest.fixture()
 def sample_schema(tmp_path: Path) -> Path:
     schema_path = tmp_path / "schema.yaml"
-    schema_path.write_text(
-        """
+    schema_path.write_text(dedent("""
         dataset:
           required_fields: [id, meta, task]
           meta_fields:
@@ -25,8 +25,7 @@ def sample_schema(tmp_path: Path) -> Path:
         tasks:
           lm:
             required: [text]
-        """.strip()
-    )
+        """).strip())
     return schema_path
 
 

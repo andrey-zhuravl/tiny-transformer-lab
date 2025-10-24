@@ -7,6 +7,7 @@ import pytest
 
 from ttlab.core.process import compute_statistics, perform_splits, process_dataset
 from ttlab.core.validate import DATA_FORMAT_JSONL, _read_schema
+from ttlab.utils.paths import get_project_path
 
 
 def _write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
@@ -51,7 +52,7 @@ def test_split_determinism(tmp_path: Path) -> None:
 
 def test_compute_statistics_correctness() -> None:
     records = _sample_records()
-    schema_path = Path("conf/data/sample_dataset.yaml")
+    schema_path = get_project_path("conf/data/sample_dataset.yaml")
     schema = _read_schema(schema_path)
 
     stats = compute_statistics(records, schema)
@@ -70,7 +71,7 @@ def test_manifest_creation_fields(tmp_path: Path) -> None:
     dataset_path = tmp_path / "dataset.jsonl"
     _write_jsonl(dataset_path, _sample_records())
 
-    schema_path = Path("conf/data/sample_dataset.yaml")
+    schema_path = get_project_path("conf/data/sample_dataset.yaml")
     schema = _read_schema(schema_path)
 
     result = process_dataset(

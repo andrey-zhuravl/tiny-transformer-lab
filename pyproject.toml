@@ -8,11 +8,25 @@ dependencies = [
   "tokenizers>=0.14,<0.16",
 ]
 
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ttlab*"]
+exclude = ["tests*", "conf*", "specs*"]
+
+
 [project.optional-dependencies]
-mlflow = ["mlflow>=2.10"]
+mlflow = ["mlflow>=2.16.0"]
 
 [tool.black]
 line-length = 100
 
 [tool.ruff]
 line-length = 100
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests/unit", "tests/integration", "tests/e2e"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-ra"

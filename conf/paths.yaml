@@ -1,5 +1,0 @@
-data_raw: data/raw
-data_processed: data/processed
-data_splits: data/splits
-out_metrics: out/metrics
-out_artifacts: out/artifacts

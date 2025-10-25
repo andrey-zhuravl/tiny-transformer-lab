@@ -16,6 +16,10 @@ from ttlab.core.validate import (
 from ttlab.utils.console import print_json
 from ttlab.utils.metrics_writer import write_metrics
 
+import typer
+
+app = typer.Typer(help="Data validation utilities")
+
 VALID_FORMATS = {DATA_FORMAT_JSONL, DATA_FORMAT_PARQUET}
 
 
@@ -27,13 +31,13 @@ def _normalise_format(value: str) -> str:
         )
     return candidate
 
-
+@app.command("run")
 def run_data_validate(
     *,
-    in_path: Path,
-    schema_path: Path,
-    data_format: str = DATA_FORMAT_JSONL,
-    metrics_dir: Optional[Path] = Path("out"),
+    in_path: Path = typer.Option(..., "--in", help="Path to in"),
+    schema_path: Path= typer.Option(..., "--schema", help="Path to in"),
+    data_format: str = typer.Option(DATA_FORMAT_JSONL, "--format", help="schema format"),
+    metrics_dir: Optional[Path] = typer.Option(None, "--metrics-dir", "-m", dir_okay=True)
 ) -> ExitCode:
     """Execute the dataset validation routine and return an exit code."""
 

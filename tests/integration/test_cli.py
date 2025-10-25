@@ -16,9 +16,11 @@ def _schema_text() -> str:
         "  required_fields: [id, meta, task]\n"
         "  meta_fields:\n"
         "    required: [grammar_rev, seed, split, template_index]\n"
-        "tasks:\n"
-        "  lm:\n"
-        "    required: [text]\n"
+        "task:\n"
+        "  required:\n"
+        "    - lm\n"
+        "    - seq2seq\n"
+        "    - cls\n"
     )
 
 
@@ -34,7 +36,7 @@ def test_cli_data_validate_success(tmp_path: Path) -> None:
                     "split": "train",
                     "template_index": 4,
                 },
-                "task": {"type": "lm", "text": "hello"},
+                "task": "lm",
             }
         )
         + "\n",
@@ -79,7 +81,7 @@ def test_cli_data_validate_invalid_input(tmp_path: Path) -> None:
                     "seed": 123,
                     "split": "train",
                 },
-                "task": {"type": "lm"},
+                "task": "lm",
             }
         )
         + "\n",

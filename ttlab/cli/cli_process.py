@@ -16,6 +16,10 @@ from ttlab.core.validate import (
 from ttlab.utils.console import print_json
 from ttlab.utils.metrics_writer import MetricsWriter
 
+import typer
+
+app = typer.Typer(help="Data processing utilities")
+
 VALID_FORMATS = {DATA_FORMAT_JSONL, DATA_FORMAT_PARQUET}
 
 
@@ -28,12 +32,12 @@ def _normalise_format(value: str) -> str:
     return candidate
 
 
-def _parse_splits(values: Iterable[str]) -> Mapping[str, float]:
+def _parse_splits(values: str) -> Mapping[str, float]:
     if not values:
         raise DatasetProcessingError("At least one split ratio must be provided")
 
     splits: dict[str, float] = {}
-    for raw in values[0].split(sep=','):
+    for raw in values.split(sep=','):
         name, _, ratio = raw.partition("=")
         print(name, ratio)
         if not name or not ratio:
@@ -47,22 +51,22 @@ def _parse_splits(values: Iterable[str]) -> Mapping[str, float]:
 
     return splits
 
-
+@app.command("run")
 def run_data_process(
     *,
-    in_path: Path,
-    schema_path: Path,
-    data_format: str = DATA_FORMAT_JSONL,
-    splits: Iterable[str] = (),
-    seed: int = 13,
-    output_dir: Path = Path("out"),
-    metrics_dir: Optional[Path] = Path("out"),
-    log_to_mlflow: bool = False,
+    in_path: Path = typer.Option(..., "--in", help="Path to in"),
+    schema_path: Path = typer.Option(..., "--schema", help="Path to schema"),
+    data_format: str = typer.Option(DATA_FORMAT_JSONL, "--format", help="schema format"),
+    split: str = typer.Option(  help="fast or safe"),
+    seed: int = typer.Option(13, "--seed", help="Deterministic random seed"),
+    output_dir: Path = typer.Option(..., "--out", help="Path to output_dir"),
+    metrics_dir: Optional[Path] = typer.Option(None, "--metrics", help="Path to metrics_dir"),
+    log_to_mlflow: bool = typer.Option(False, "--log_to_mlflow/--no-log_to_mlflow", help="Need log to mlflow"),
 ) -> ExitCode:
     try:
         schema = _read_schema(schema_path)
         normalised_format = _normalise_format(data_format)
-        parsed_splits = _parse_splits(splits)
+        parsed_splits = _parse_splits(split)
         result = process_dataset(
             dataset_path=in_path,
             schema_path=schema_path,

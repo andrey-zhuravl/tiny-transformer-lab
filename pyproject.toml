@@ -13,6 +13,8 @@ where = ["."]
 include = ["ttlab*"]
 exclude = ["tests*", "conf*", "specs*"]
 
+[project.scripts]
+ttlab = "ttlab.cli.cli_app:app"
 
 [project.optional-dependencies]
 mlflow = ["mlflow>=2.16.0"]

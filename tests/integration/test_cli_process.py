@@ -5,6 +5,7 @@ from pathlib import Path
 
 from ttlab.cli import run
 from ttlab.core.validate import ExitCode
+from ttlab.utils.paths import get_project_path
 
 
 def _write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
@@ -23,7 +24,7 @@ def _sample_rows() -> list[dict[str, object]]:
                 "split": "train",
                 "template_index": index,
             },
-            "task": {"type": "lm", "text": f"hello {index}"},
+            "task": "lm",
         }
         for index in range(10)
     ]
@@ -42,13 +43,11 @@ def test_cli_data_process_success(tmp_path: Path) -> None:
             "--in",
             str(dataset_path),
             "--schema",
-            str(Path("conf/data/sample_dataset.yaml")),
+            str(get_project_path("conf/data/sample_dataset.yaml")),
             "--format",
             "JSONL",
-            "--splits",
-            "train=0.7",
-            "dev=0.2",
-            "test=0.1",
+            "--split",
+            "train=0.7,dev=0.2,test=0.1",
             "--seed",
             "17",
             "--out-dir",
@@ -85,9 +84,10 @@ def test_cli_data_process_invalid_schema(tmp_path: Path) -> None:
             str(bad_schema),
             "--format",
             "JSONL",
-            "--splits",
-            "train=0.8",
-            "test=0.2",
+            "--split",
+            "train=0.7,dev=0.2,test=0.1",
+            "--seed",
+            "17",
         ]
     )
 

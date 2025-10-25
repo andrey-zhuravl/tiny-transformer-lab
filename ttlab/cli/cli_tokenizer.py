@@ -5,11 +5,6 @@ from pathlib import Path
 
 import typer
 
-try:
-    from ttlab.cli import app as shared_app  # type: ignore
-except Exception:  # pragma: no cover - fallback when CLI package not initialised
-    shared_app = None
-
 from ..core.tokenizer import inspect_tokenizer, train_or_import_tokenizer
 
 
@@ -19,11 +14,9 @@ class ExitCode(int):
     IO_ERROR = 3
     UNKNOWN = 4
 
+app = typer.Typer(help="Tokenizer utilities")
 
-app = shared_app if shared_app is not None else typer.Typer(no_args_is_help=True)
-
-
-@app.command("tok:train")
+@app.command("train")
 def tok_train(
     dataset_manifest: Path = typer.Option(..., "--dataset-manifest", help="Path to dataset.manifest.json"),
     algo: str = typer.Option(..., "--algo", help="Tokenization algorithm: char|bpe|unigram"),
@@ -34,7 +27,7 @@ def tok_train(
     seed: int = typer.Option(13, "--seed", help="Deterministic random seed"),
     out_dir: Path = typer.Option(Path("out/tokenizer"), "--out", help="Output directory"),
     use_external_tokenizer: Path | None = typer.Option(None, "--use-external-tokenizer", help="Import an existing tokenizer.json"),
-) -> None:
+) -> ExitCode:
     try:
         result = train_or_import_tokenizer(
             dataset_manifest=dataset_manifest,
@@ -58,6 +51,7 @@ def tok_train(
         raise typer.Exit(code=ExitCode.UNKNOWN)
 
     typer.echo(json.dumps(result, ensure_ascii=False, indent=2))
+    return ExitCode.OK
 
 
 @app.command("tok:inspect")

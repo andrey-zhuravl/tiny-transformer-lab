@@ -1,6 +1,20 @@
 {
   "tokenizers": [
     {
+      "tokenizer_id": "bpe-5000-nfc-lower-keep-s42",
+      "manifest_path": "D:\\garden\\lab\\tiny-transformer-lab\\out\\tok\\bpe5000\\tokenizer.manifest.json",
+      "algo": "bpe",
+      "vocab_size": 5000,
+      "created_at": "2025-10-25T10:56:51Z"
+    },
+    {
+      "tokenizer_id": "bpe-64-nfc-lower-keep-s13",
+      "manifest_path": "C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-206\\test_tok_train_cli0\\artifacts\\tokenizer.manifest.json",
+      "algo": "bpe",
+      "vocab_size": 64,
+      "created_at": "2025-10-25T06:46:15Z"
+    },
+    {
       "tokenizer_id": "char-64-nfc-lower-keep-s42",
       "manifest_path": "C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-197\\test_tokenizer_train_char_bpe_0\\char\\tokenizer.manifest.json",
       "algo": "char",

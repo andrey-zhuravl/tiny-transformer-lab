@@ -33,8 +33,9 @@ def _parse_splits(values: Iterable[str]) -> Mapping[str, float]:
         raise DatasetProcessingError("At least one split ratio must be provided")
 
     splits: dict[str, float] = {}
-    for raw in values:
+    for raw in values[0].split(sep=','):
         name, _, ratio = raw.partition("=")
+        print(name, ratio)
         if not name or not ratio:
             raise DatasetProcessingError(
                 "Split specification must follow the pattern '<name>=<ratio>'"

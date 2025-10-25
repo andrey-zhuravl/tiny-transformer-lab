@@ -108,6 +108,17 @@ def run(argv: Optional[Iterable[str]] = None) -> ExitCode:
             metrics_dir=Path(args.metrics_dir) if args.metrics_dir else None,
             log_to_mlflow=bool(args.log_to_mlflow),
         )
+    elif args.command == "tok:train":
+        exit_code = run_data_process(
+            in_path=Path(args.in_path),
+            schema_path=Path(args.schema_path),
+            data_format=args.data_format,
+            splits=args.splits,
+            seed=args.seed,
+            output_dir=Path(args.out_dir),
+            metrics_dir=Path(args.metrics_dir) if args.metrics_dir else None,
+            log_to_mlflow=bool(args.log_to_mlflow),
+        )
     else:  # pragma: no cover - argparse prevents reaching this branch
         parser.error(f"Unknown command: {args.command}")
         exit_code = ExitCode.UNKNOWN

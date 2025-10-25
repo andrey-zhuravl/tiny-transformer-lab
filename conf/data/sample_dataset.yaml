@@ -9,15 +9,8 @@ dataset:
       - seed
       - split
       - template_index
-tasks:
-  lm:
-    required:
-      - text
-  seq2seq:
-    required:
-      - src
-      - tgt
-  cls:
-    required:
-      - text
-      - label
+task:
+  required:
+    - lm
+    - seq2seq
+    - cls

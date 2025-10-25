@@ -202,8 +202,8 @@ def _read_schema(schema_path: Path) -> Schema:
     if not isinstance(schema, Mapping):
         raise DatasetValidationError("Schema root must be a mapping")
 
-    if "dataset" not in schema or "tasks" not in schema:
-        raise DatasetValidationError("Schema must define 'dataset' and 'tasks' sections")
+    if "dataset" not in schema or "task" not in schema:
+        raise DatasetValidationError("Schema must define 'dataset' and 'task' sections")
 
     return schema
 
@@ -252,9 +252,12 @@ def _validate_schema(schema: Schema) -> None:
     if not isinstance(dataset_section, Mapping):
         raise DatasetValidationError("Schema 'dataset' section must be a mapping")
 
-    tasks_section = schema.get("tasks")
-    if not isinstance(tasks_section, Mapping):
-        raise DatasetValidationError("Schema 'tasks' section must be a mapping")
+    task_section = schema.get("task")
+    if not isinstance(task_section, Mapping):
+        raise DatasetValidationError("Schema 'task' section must be a mapping")
+    required_task = task_section.get("required", [])
+    if not required_task:
+        raise DatasetValidationError("Schema 'task.required' section must be an iterable of strings")
 
     required_fields = dataset_section.get("required_fields", [])
     if not isinstance(required_fields, Iterable):
@@ -269,20 +272,11 @@ def _validate_schema(schema: Schema) -> None:
         if not isinstance(required_meta, Iterable):
             raise DatasetValidationError("'meta_fields.required' must be an iterable of strings")
 
-    for task_name, task_schema in tasks_section.items():
-        if not isinstance(task_schema, Mapping):
-            raise DatasetValidationError(f"Task schema for '{task_name}' must be a mapping")
-        required_task_fields = task_schema.get("required", [])
-        if not isinstance(required_task_fields, Iterable):
-            raise DatasetValidationError(
-                f"Task schema 'required' for '{task_name}' must be an iterable of strings"
-            )
-
 
 def _validate_record(record: Record, schema: Schema, row_number: int) -> List[ValidationError]:
     errors: List[ValidationError] = []
     dataset_section = schema["dataset"]
-    tasks_section = schema["tasks"]
+    task_section = schema["task"]
 
     required_fields = dataset_section.get("required_fields", [])
     for field in required_fields:
@@ -305,32 +299,8 @@ def _validate_record(record: Record, schema: Schema, row_number: int) -> List[Va
                     )
 
     task_value = record.get("task")
-    if not isinstance(task_value, Mapping):
-        errors.append(ValidationError(row=row_number, message="'task' must be a mapping"))
-    else:
-        task_type = task_value.get("type")
-        if not isinstance(task_type, str):
-            errors.append(ValidationError(row=row_number, message="Task 'type' must be a string"))
-        else:
-            task_schema = tasks_section.get(task_type)
-            if not task_schema:
-                errors.append(
-                    ValidationError(
-                        row=row_number, message=f"Unknown task type '{task_type}'"
-                    )
-                )
-            else:
-                required_task_fields = task_schema.get("required", [])
-                for task_field in required_task_fields:
-                    if task_field not in task_value:
-                        errors.append(
-                            ValidationError(
-                                row=row_number,
-                                message=(
-                                    f"Missing task field '{task_field}' for task type '{task_type}'"
-                                ),
-                            )
-                        )
+    if task_value not in task_section.get("required", []):
+        errors.append(ValidationError(row=row_number, message=f"Missing task field '{task_value}', it must be '{task_section.get('required')}'"))
 
     return errors
 

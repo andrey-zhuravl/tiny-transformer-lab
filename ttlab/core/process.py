@@ -98,12 +98,7 @@ def _count_records(records: Sequence[MutableMapping[str, object]]) -> Counter[st
     counter: Counter[str] = Counter()
     for record in records:
         task = record.get("task")
-        task_type = None
-        if isinstance(task, Mapping):
-            candidate = task.get("type")
-            if isinstance(candidate, str):
-                task_type = candidate
-        counter[task_type or "<missing>"] += 1
+        counter[task] += 1
     return counter
 
 

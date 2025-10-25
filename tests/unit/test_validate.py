@@ -22,9 +22,11 @@ def sample_schema(tmp_path: Path) -> Path:
           required_fields: [id, meta, task]
           meta_fields:
             required: [grammar_rev, seed, split, template_index]
-        tasks:
-          lm:
-            required: [text]
+        task:
+          required:
+            - lm
+            - seq2seq
+            - cls
         """).strip())
     return schema_path
 
@@ -38,7 +40,7 @@ def _write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
 def test_read_schema_ok(sample_schema: Path) -> None:
     schema = _read_schema(sample_schema)
     assert "dataset" in schema
-    assert "tasks" in schema
+    assert "task" in schema
 
 
 def test_validate_single_record_ok(tmp_path: Path, sample_schema: Path) -> None:
@@ -54,7 +56,7 @@ def test_validate_single_record_ok(tmp_path: Path, sample_schema: Path) -> None:
                     "split": "train",
                     "template_index": 0,
                 },
-                "task": {"type": "lm", "text": "hello world"},
+                "task": "lm",
             }
         ],
     )
@@ -80,7 +82,7 @@ def test_validate_single_record_missing_field(tmp_path: Path, sample_schema: Pat
                     "seed": 1,
                     "split": "train",
                 },
-                "task": {"type": "lm"},
+                "task": "lm_error",
             }
         ],
     )
@@ -92,5 +94,6 @@ def test_validate_single_record_missing_field(tmp_path: Path, sample_schema: Pat
     assert report.rows_invalid == 1
     assert len(report.errors) == 2
     messages = {error.message for error in report.errors}
+    print(messages)
     assert "Missing meta field 'template_index'" in messages
-    assert "Missing task field 'text' for task type 'lm'" in messages
+    assert "Missing task field 'lm_error', it must be '['lm', 'seq2seq', 'cls']'" in messages

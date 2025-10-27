@@ -54,12 +54,13 @@ def tok_train(
     return ExitCode.OK
 
 
-@app.command("tok:inspect")
+@app.command("inspect")
 def tok_inspect(
     tokenizer_path: Path = typer.Option(..., "--tokenizer", help="Path to tokenizer.json"),
     dataset_manifest: Path = typer.Option(..., "--dataset-manifest", help="Dataset manifest"),
     out_dir: Path = typer.Option(Path("out/tokenizer"), "--out", help="Output directory"),
 ) -> None:
+    typer.echo("asd@app.command(train)")
     try:
         report = inspect_tokenizer(tokenizer_path=tokenizer_path, dataset_manifest=dataset_manifest, out_dir=out_dir)
     except FileNotFoundError as exc:  # pragma: no cover

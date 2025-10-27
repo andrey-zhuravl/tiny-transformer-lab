@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import enum
 from pathlib import Path
 from typing import Iterable, Mapping, Optional
+
+from click.exceptions import Exit
 
 from ttlab.core.process import DatasetProcessingError, process_dataset
 from ttlab.core.validate import (
@@ -117,5 +120,31 @@ def run_data_process(
 
     return ExitCode.OK
 
+import functools
+def returns_exit_code(fn):
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        code = fn(*args, **kwargs)
+        if code is None:
+            return  # нормальный нулевой выход
+        # поддержим Enum и IntEnum
+        if isinstance(code, enum.Enum):
+            code = code.value
+        try:
+            code = int(code)
+        except Exception as e:
+            raise RuntimeError(f"Unsupported exit code returned: {code!r}") from e
+        raise typer.Exit(code=code)
+    return wrapper
 
-__all__ = ["run_data_process"]
+@app.command("run_test")
+@returns_exit_code
+def run_test(
+    *,
+    in_path: Path = typer.Option(..., "--in", help="Path to in")
+) -> ExitCode:
+
+    return ExitCode.INVALID_INPUT
+
+
+__all__ = ["run_data_process", "run_test"]

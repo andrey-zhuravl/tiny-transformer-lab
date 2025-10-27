@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
+from click.exceptions import Exit
+
 from ttlab.core.validate import (
     DATA_FORMAT_JSONL,
     DATA_FORMAT_PARQUET,
@@ -33,7 +35,6 @@ def _normalise_format(value: str) -> str:
 
 @app.command("run")
 def run_data_validate(
-    *,
     in_path: Path = typer.Option(..., "--in", help="Path to in"),
     schema_path: Path= typer.Option(..., "--schema", help="Path to in"),
     data_format: str = typer.Option(DATA_FORMAT_JSONL, "--format", help="schema format"),
@@ -47,13 +48,14 @@ def run_data_validate(
         report = validate_dataset(in_path, schema, normalised_format)
     except FileNotFoundError as exc:
         print(str(exc), flush=True)
-        return ExitCode.IO_ERROR
+        raise typer.Exit(code=ExitCode.IO_ERROR)
     except DatasetValidationError as exc:
         print(str(exc), flush=True)
-        return ExitCode.INVALID_INPUT
+        typer.echo(str(exc))
+        raise typer.Exit(code=ExitCode.INVALID_INPUT)
     except Exception as exc:  # pragma: no cover - defensive guard
         print(f"Unexpected error: {exc}", flush=True)
-        return ExitCode.UNKNOWN
+        raise typer.Exit(code=ExitCode.UNKNOWN)
 
     payload = report.to_dict()
     print_json(payload)
@@ -64,7 +66,10 @@ def run_data_validate(
         except OSError as exc:  # pragma: no cover - filesystem errors are logged but non fatal
             print(f"Failed to write metrics: {exc}")
 
-    return ExitCode.OK if report.rows_invalid == 0 else ExitCode.INVALID_INPUT
+    raise typer.Exit(code=ExitCode.OK) if report.rows_invalid == 0 else typer.Exit(ExitCode.INVALID_INPUT)
 
 
 __all__ = ["run_data_validate"]
+
+if __name__ == "__main__":  # pragma: no cover
+    app()

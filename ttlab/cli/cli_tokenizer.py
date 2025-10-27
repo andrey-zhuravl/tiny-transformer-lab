@@ -60,7 +60,6 @@ def tok_inspect(
     dataset_manifest: Path = typer.Option(..., "--dataset-manifest", help="Dataset manifest"),
     out_dir: Path = typer.Option(Path("out/tokenizer"), "--out", help="Output directory"),
 ) -> None:
-    typer.echo("asd@app.command(train)")
     try:
         report = inspect_tokenizer(tokenizer_path=tokenizer_path, dataset_manifest=dataset_manifest, out_dir=out_dir)
     except FileNotFoundError as exc:  # pragma: no cover

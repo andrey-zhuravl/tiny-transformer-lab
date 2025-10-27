@@ -1,0 +1,426 @@
+{
+  "spec_id": "TTL-B1",
+  "title": "Tokenizer Suite & Registry",
+  "version": "v2",
+  "stage": "B1",
+  "lab": "tiny-transformer-lab",
+  "goal": "Implement a standardized tokenization layer (char/BPE/Unigram) with metrics, manifest, and artifact registry. Ensure determinism, compatibility with toy-lang-lab, and logging to MLOps Homelab (MLflow/MinIO).",
+  "context": {
+    "integration": {
+      "from": "toy-lang-lab A2 outputs (dataset.manifest.json + splits)",
+      "to": "C-phase training in tiny-transformer-lab; artifacts tracked in MLflow/MinIO; edges registered in GardenKeeper"
+    }
+  },
+  "repository_policy": {
+    "path": "spec/B1/tiny-transformer-lab.B1.spec.v2.json",
+    "must_be_committed": true,
+    "ci_checks": [
+      "Spec file must exist at the exact path above",
+      "Spec.version must equal 'v2'",
+      "Spec.stage must equal 'B1'"
+    ]
+  },
+  "interfaces": {
+    "inputs": [
+      "dataset.manifest.json from A2 (toy-lang-lab → TTL) with split paths (train/dev/test)",
+      "Optionally: an external tokenizer artifact (tokenizer.json) to import instead of training"
+    ],
+    "outputs": [
+      "tokenizer.json (HuggingFace tokenizers export)",
+      "tokenizer.manifest.json (metadata and hashes)",
+      "tokenizer.report.json (metrics summary)",
+      "MLflow run (experiment `ttl-tokenizers`) with artifacts stored in MinIO/S3"
+    ],
+    "compatibility": [
+      "HuggingFace tokenizers JSON format",
+      "GardenKeeper graph edge: dataset → tokenizer",
+      "MLOps Homelab: MLflow tracking URI and S3-compatible artifact store"
+    ]
+  },
+  "scope": {
+    "included": [
+      "Training tokenizers: char, BPE, Unigram",
+      "Normalization controls (NFC / lowercasing / punctuation policy)",
+      "Special tokens: <pad>, <bos>, <eos>, <unk>, <sep>",
+      "Determinism (seeded training and controlled data order)",
+      "Inspection & reports (OOV, average tokens per sample, p50/p95, per-task coverage)",
+      "Publishing artifacts to MLflow/MinIO and registering in a local registry"
+    ],
+    "excluded": [
+      "Tensor encoding and dataloaders (covered in B2)",
+      "Model training (covered in C-phase)"
+    ]
+  },
+  "requirements": {
+    "cli": {
+      "commands": [
+        {
+          "name": "tok:train",
+          "args": [
+            "--dataset-manifest <path>",
+            "--algo {char,bpe,unigram}",
+            "--vocab-size <int>",
+            "--norm {none,nfc}",
+            "--lower/--no-lower",
+            "--punct-policy {keep,strip,space}",
+            "--seed <int>",
+            "--out <dir>",
+            "--use-external-tokenizer <path?>"
+          ],
+          "behavior": [
+            "If --use-external-tokenizer provided, import the artifact and skip training",
+            "Otherwise train tokenizer on the train split (from dataset.manifest) with given normalizations and seed",
+            "Save tokenizer.json, tokenizer.manifest.json, tokenizer.report.json under --out",
+            "Log metrics/artifacts into MLflow (experiment 'ttl-tokenizers')"
+          ],
+          "exit_codes": {
+            "OK": 0,
+            "INVALID_INPUT": 2,
+            "IO_ERROR": 3,
+            "UNKNOWN": 4
+          }
+        },
+        {
+          "name": "tok:inspect",
+          "args": [
+            "--tokenizer <path/to/tokenizer.json>",
+            "--dataset-manifest <path>",
+            "--out <dir>"
+          ],
+          "behavior": [
+            "Compute OOV rate, avg tokens per sample, token length p50/p95, per-task coverage on splits",
+            "Save tokenizer.report.json and log metrics to MLflow"
+          ],
+          "exit_codes": {
+            "OK": 0,
+            "INVALID_INPUT": 2,
+            "IO_ERROR": 3,
+            "UNKNOWN": 4
+          }
+        }
+      ]
+    },
+    "tokenizer": {
+      "algorithms": [
+        "char",
+        "bpe",
+        "unigram"
+      ],
+      "library": "HuggingFace tokenizers (export/import in tokenizer.json)",
+      "special_tokens": [
+        "<pad>",
+        "<bos>",
+        "<eos>",
+        "<unk>",
+        "<sep>"
+      ],
+      "normalization": {
+        "nfc": "toggle",
+        "lower": "boolean flag",
+        "punct_policy": "keep | strip | space"
+      },
+      "determinism": "fixed seed governs training and document order",
+      "export": {
+        "files": [
+          "tokenizer.json",
+          "tokenizer.manifest.json",
+          "tokenizer.report.json"
+        ],
+        "manifest_fields": [
+          "tokenizer_id, algo, vocab_size, normalizer, special_tokens, seed, created_at,",
+          "source_dataset_id, source_git_sha, input_paths_sha256, tokenizer_json_sha256"
+        ]
+      },
+      "report_metrics": [
+        "oov_rate, avg_tokens_per_sample, tokens_len_p50, tokens_len_p95, coverage_per_task, train_time_sec"
+      ]
+    }
+  },
+  "manifests": {
+    "tokenizer_manifest_example": {
+      "tokenizer_id": "bpe-8k-nfc-lower",
+      "algo": "bpe",
+      "vocab_size": 8000,
+      "normalizer": {
+        "nfc": true,
+        "lower": true,
+        "punct_policy": "keep"
+      },
+      "special_tokens": [
+        "<pad>",
+        "<bos>",
+        "<eos>",
+        "<unk>",
+        "<sep>"
+      ],
+      "seed": 13,
+      "created_at": "2025-10-24T12:00:00Z",
+      "source_dataset_id": "toy-v1",
+      "source_manifest_path": "path/to/dataset.manifest.json",
+      "source_git_sha": "abcdef1",
+      "train_split_path": "data/train.jsonl",
+      "input_paths_sha256": {
+        "train.jsonl": "sha256train..."
+      },
+      "tokenizer_json_path": "out/tokenizer.json",
+      "tokenizer_json_sha256": "sha256tok..."
+    }
+  },
+  "ARD": {
+    "purpose": "Define architecture of the tokenization/registry layer.",
+    "components": {
+      "CLI": "ttlab/cli/tok.py (tok:train, tok:inspect)",
+      "Core": "ttlab/core/tokenizer.py (training/import/inspection)",
+      "Reports": "ttlab/core/tok_report.py (metrics computation)",
+      "Registry": "ttlab/registry/index.json (local tokenizers registry)",
+      "MLflow": "ttlab/utils/mlflow_utils.py (logging)",
+      "Utils": "ttlab/utils/files.py (hashes, helpers)"
+    },
+    "dataflow": [
+      "dataset.manifest → tok:train → tokenizer.json → tok:inspect → tokenizer.report.json → MLflow/MinIO",
+      "Optionally: external tokenizer → import → manifest/report → MLflow"
+    ]
+  },
+  "ADR": {
+    "ADR-B1-01": {
+      "decision": "Support three algorithms (char/BPE/Unigram) and export HuggingFace tokenizer.json",
+      "status": "accepted",
+      "rationale": "Comparability, compatibility, standard format"
+    },
+    "ADR-B1-02": {
+      "decision": "Default normalization NFC+lower; configurable via CLI flags",
+      "status": "accepted",
+      "rationale": "Stable vocabulary and reduced fragmentation"
+    },
+    "ADR-B1-03": {
+      "decision": "Log all results into MLflow; artifacts stored in MinIO/S3",
+      "status": "accepted",
+      "rationale": "Unified tracking for Homelab and configuration comparisons"
+    }
+  },
+  "tests": {
+    "unit": [
+      "test_tokenizer_train_char_bpe_unigram_small()",
+      "test_normalization_flags_affect_vocab()",
+      "test_special_tokens_present()",
+      "test_manifest_hashes()"
+    ],
+    "integration": [
+      "test_tok_train_on_small_corpus_and_export()",
+      "test_tok_inspect_metrics_nonempty()"
+    ],
+    "e2e": [
+      "test_dataset_manifest_to_tok_train_to_tok_inspect_mlflow_smoke()"
+    ]
+  },
+  "clear_metrics": {
+    "coverage": ">=90%",
+    "train_time_sec_per_1M_chars": "<=120",
+    "oov_rate_on_dev": "<=0.01 for bpe/unigram when vocab_size >= 8000",
+    "avg_tokens_per_sample_delta_vs_baseline": "tracked",
+    "mlflow_logging_success": "100%"
+  },
+  "quality_gates": {
+    "pre_commit": [
+      "ruff",
+      "black",
+      "mypy"
+    ],
+    "pre_merge": [
+      "pytest --cov"
+    ],
+    "pre_release": [
+      "pytest -m e2e-smoke",
+      "spec presence check workflow passes"
+    ]
+  },
+  "traceability": {
+    "chain": "dataset.manifest → tok:train → tokenizer.manifest → tok:inspect(report) → MLflow run_id",
+    "recorded_metrics": [
+      "oov_rate",
+      "avg_tokens_per_sample",
+      "tokens_len_p50",
+      "tokens_len_p95",
+      "coverage_per_task",
+      "train_time_sec"
+    ]
+  },
+  "timeline": {
+    "estimated_duration_days": 5,
+    "dependencies": [
+      "TTL-A2 completed (validated datasets and manifest available)",
+      "MLOps Homelab configured (MLflow/MinIO)"
+    ]
+  },
+  "maintainers": [
+    "Andrei (lead dev, TTL)",
+    "GPT-5 Thinking (assistant architect)"
+  ],
+  "bundle_files": [
+    {
+      "path": "spec/B1/README.md",
+      "content": "# TTL B1 — Tokenizer Suite & Registry\n\nThis spec is authoritative for the B1 phase. Keep this file and the JSON spec committed.\n"
+    },
+    {
+      "path": "ttlab/cli/tok.py",
+      "content": "\nfrom __future__ import annotations\nimport json\nfrom pathlib import Path\nimport typer\n\ntry:\n    from ttlab.cli import app  # reuse global app if exists\nexcept Exception:\n    app = typer.Typer(no_args_is_help=True)\n\nfrom ..core.tokenizer import train_or_import_tokenizer, inspect_tokenizer\n\nclass ExitCode(int):\n    OK = 0\n    INVALID_INPUT = 2\n    IO_ERROR = 3\n    UNKNOWN = 4\n\n@app.command(name=\"tok:train\")\ndef tok_train(\n    dataset_manifest: Path = typer.Option(..., \"--dataset-manifest\"),\n    algo: str = typer.Option(..., \"--algo\", help=\"char|bpe|unigram\"),\n    vocab_size: int = typer.Option(8000, \"--vocab-size\"),\n    norm: str = typer.Option(\"nfc\", \"--norm\", help=\"none|nfc\"),\n    lower: bool = typer.Option(True, \"--lower/--no-lower\"),\n    punct_policy: str = typer.Option(\"keep\", \"--punct-policy\", help=\"keep|strip|space\"),\n    seed: int = typer.Option(13, \"--seed\"),\n    out_dir: Path = typer.Option(Path(\"out/tokenizer\"), \"--out\"),\n    use_external_tokenizer: Path | None = typer.Option(None, \"--use-external-tokenizer\"),\n) -> None:\n    try:\n        result = train_or_import_tokenizer(\n            dataset_manifest=dataset_manifest,\n            algo=algo,\n            vocab_size=vocab_size,\n            norm=norm,\n            lower=lower,\n            punct_policy=punct_policy,\n            seed=seed,\n            out_dir=out_dir,\n            external_tokenizer=use_external_tokenizer,\n        )\n    except FileNotFoundError as exc:\n        typer.echo(f\"[IO] {exc}\")\n        raise typer.Exit(code=ExitCode.IO_ERROR)\n    except ValueError as exc:\n        typer.echo(f\"[INVALID] {exc}\")\n        raise typer.Exit(code=ExitCode.INVALID_INPUT)\n    except Exception as exc:\n        typer.echo(f\"[UNKNOWN] {exc}\")\n        raise typer.Exit(code=ExitCode.UNKNOWN)\n\n    typer.echo(json.dumps(result, ensure_ascii=False, indent=2))\n\n@app.command(name=\"tok:inspect\")\ndef tok_inspect(\n    tokenizer_path: Path = typer.Option(..., \"--tokenizer\"),\n    dataset_manifest: Path = typer.Option(..., \"--dataset-manifest\"),\n    out_dir: Path = typer.Option(Path(\"out/tokenizer\"), \"--out\"),\n) -> None:\n    try:\n        report = inspect_tokenizer(tokenizer_path=tokenizer_path, dataset_manifest=dataset_manifest, out_dir=out_dir)\n    except FileNotFoundError as exc:\n        typer.echo(f\"[IO] {exc}\")\n        raise typer.Exit(code=ExitCode.IO_ERROR)\n    except Exception as exc:\n        typer.echo(f\"[UNKNOWN] {exc}\")\n        raise typer.Exit(code=ExitCode.UNKNOWN)\n\n    typer.echo(json.dumps(report, ensure_ascii=False, indent=2))\n\nif __name__ == \"__main__\":\n    app()\n"
+    },
+    {
+      "path": "ttlab/core/tokenizer.py",
+      "content": "\nfrom __future__ import annotations\nimport json\nfrom dataclasses import dataclass\nfrom pathlib import Path\nfrom typing import Dict, Iterable\n\ntry:\n    from tokenizers import Tokenizer, models, trainers, normalizers, pre_tokenizers, processors\nexcept Exception:\n    Tokenizer = None  # type: ignore\n\nfrom ..utils.files import read_json, write_json, sha256_file, ensure_dir, iter_jsonl_texts\n\nSPECIAL_TOKENS = [\"<pad>\", \"<bos>\", \"<eos>\", \"<unk>\", \"<sep>\"]\n\n@dataclass\nclass TokConfig:\n    algo: str\n    vocab_size: int\n    norm: str\n    lower: bool\n    punct_policy: str\n    seed: int\n\ndef _build_normalizer(cfg: TokConfig):\n    if Tokenizer is None:\n        raise RuntimeError(\"HuggingFace `tokenizers` is not installed.\")\n    steps = []\n    if cfg.norm == \"nfc\":\n        steps.append(normalizers.NFC())\n    if cfg.lower:\n        steps.append(normalizers.Lowercase())\n    if steps:\n        return normalizers.Sequence(steps)\n    return None\n\ndef _trainer_and_model(cfg: TokConfig):\n    if cfg.algo == \"bpe\":\n        return models.BPE(unk_token=\"<unk>\"), trainers.BpeTrainer(vocab_size=cfg.vocab_size, special_tokens=SPECIAL_TOKENS, show_progress=False, seed=cfg.seed)\n    if cfg.algo == \"unigram\":\n        return models.Unigram(), trainers.UnigramTrainer(vocab_size=cfg.vocab_size, special_tokens=SPECIAL_TOKENS)\n    if cfg.algo == \"char\":\n        # Minimal char-level via Unigram with small vocab; swap with a dedicated char model if needed.\n        return models.Unigram(), trainers.UnigramTrainer(vocab_size=cfg.vocab_size, special_tokens=SPECIAL_TOKENS)\n    raise ValueError(f\"Unsupported algo: {cfg.algo}\")\n\ndef _collect_training_files(dataset_manifest: Path) -> Iterable[Path]:\n    man = read_json(dataset_manifest)\n    train_path = Path(man[\"splits\"][\"train\"][\"path\"]).resolve()\n    if not train_path.exists():\n        raise FileNotFoundError(f\"Train split not found: {train_path}\")\n    return [train_path]\n\ndef _train_tokenizer(cfg: TokConfig, dataset_manifest: Path, out_dir: Path) -> Dict[str, str]:\n    if Tokenizer is None:\n        raise RuntimeError(\"HuggingFace `tokenizers` is not installed.\")\n    ensure_dir(out_dir)\n    files = _collect_training_files(dataset_manifest)\n    model, trainer = _trainer_and_model(cfg)\n    tok = Tokenizer(model)\n    norm_obj = _build_normalizer(cfg)\n    if norm_obj:\n        tok.normalizer = norm_obj\n    tok.pre_tokenizer = pre_tokenizers.Whitespace()\n    # Train from iterator of strings\n    def iterator():\n        for p in files:\n            for text in iter_jsonl_texts(p):\n                yield text\n    tok.train_from_iterator(iterator(), trainer=trainer)\n    tok.post_processor = processors.TemplateProcessing(\n        single=\"<bos> $A <eos>\",\n        pair=\"<bos> $A <sep> $B <eos>\",\n        special_tokens=[(\"<bos>\", 1), (\"<eos>\", 2), (\"<sep>\", 4)],\n    )\n    tok_path = out_dir / \"tokenizer.json\"\n    tok.save(str(tok_path))\n    return {\"tokenizer_json_path\": str(tok_path), \"tokenizer_json_sha256\": sha256_file(tok_path)}\n\ndef train_or_import_tokenizer(*, dataset_manifest: Path, algo: str, vocab_size: int, norm: str, lower: bool, punct_policy: str, seed: int, out_dir: Path, external_tokenizer: Path | None):\n    cfg = TokConfig(algo=algo, vocab_size=vocab_size, norm=norm, lower=lower, punct_policy=punct_policy, seed=seed)\n    ensure_dir(out_dir)\n    manifest = {\n        \"created_at\": None,\n        \"tokenizer_id\": f\"{algo}-{vocab_size}-{norm}-\" + (\"lower\" if lower else \"nolower\"),\n        \"algo\": algo,\n        \"vocab_size\": vocab_size,\n        \"normalizer\": {\"nfc\": norm == \"nfc\", \"lower\": lower, \"punct_policy\": punct_policy},\n        \"seed\": seed,\n    }\n    if external_tokenizer:\n        tok_path = Path(external_tokenizer).resolve()\n        if not tok_path.exists():\n            raise FileNotFoundError(f\"External tokenizer not found: {tok_path}\")\n        manifest[\"tokenizer_json_path\"] = str(tok_path)\n        manifest[\"tokenizer_json_sha256\"] = sha256_file(tok_path)\n    else:\n        r = _train_tokenizer(cfg, dataset_manifest, out_dir)\n        manifest.update(r)\n    # dataset linkage\n    ds = read_json(dataset_manifest)\n    manifest.update({\n        \"source_dataset_id\": ds.get(\"dataset_id\", \"unknown\"),\n        \"source_manifest_path\": str(Path(dataset_manifest).resolve())\n    })\n    write_json(out_dir / \"tokenizer.manifest.json\", manifest)\n    # minimal report placeholder\n    report = {\"status\": \"ok\", \"files\": [manifest[\"tokenizer_json_path\"]]}\n    write_json(out_dir / \"tokenizer.report.json\", report)\n    return {\"manifest\": manifest, \"report\": report}\n\ndef inspect_tokenizer(*, tokenizer_path: Path, dataset_manifest: Path, out_dir: Path):\n    ensure_dir(out_dir)\n    # Placeholder: implement metrics in tok_report.py\n    rep = {\"oov_rate\": None, \"avg_tokens_per_sample\": None, \"notes\": \"Implement metrics in tok_report.py\"}\n    write_json(out_dir / \"tokenizer.report.json\", rep)\n    return rep\n"
+    },
+    {
+      "path": "ttlab/core/tok_report.py",
+      "content": "\nfrom __future__ annotations\n# Placeholder for tokenizer inspection metrics: OOV rate, avg tokens per sample, p50/p95 lengths, per-task coverage.\n# Implement using HuggingFace `tokenizers` and texts from dataset splits.\n"
+    },
+    {
+      "path": "ttlab/utils/files.py",
+      "content": "\nfrom __future__ annotations\nimport hashlib, json\nfrom pathlib import Path\nfrom typing import Iterable\n\ndef ensure_dir(path: Path) -> None:\n    path.mkdir(parents=True, exist_ok=True)\n\ndef sha256_file(path: Path) -> str:\n    h = hashlib.sha256()\n    with path.open(\"rb\") as fh:\n        for chunk in iter(lambda: fh.read(65536), b\"\"):\n            h.update(chunk)\n    return h.hexdigest()\n\ndef write_json(path: Path, payload) -> None:\n    ensure_dir(path.parent)\n    with path.open(\"w\", encoding=\"utf-8\") as fh:\n        json.dump(payload, fh, ensure_ascii=False, indent=2)\n\ndef read_json(path: Path):\n    with path.open(\"r\", encoding=\"utf-8\") as fh:\n        return json.load(fh)\n\ndef iter_jsonl_texts(path: Path) -> Iterable[str]:\n    # Yields text fields from JSONL records for tokenizer training (lm/cls use `text`; seq2seq uses `src` and `tgt`).\n    with path.open(\"r\", encoding=\"utf-8\") as fh:\n        for line in fh:\n            line = line.strip()\n            if not line:\n                continue\n            try:\n                obj = json.loads(line)\n            except Exception:\n                continue\n            if \"text\" in obj:\n                yield str(obj[\"text\"])\n            if \"src\" in obj:\n                yield str(obj[\"src\"])\n            if \"tgt\" in obj:\n                yield str(obj[\"tgt\"])\n"
+    },
+    {
+      "path": "ttlab/utils/mlflow_utils.py",
+      "content": "\n\"\"\"Optional MLflow logging helpers. Safe to import when MLflow is absent.\"\"\"\nfrom __future__ annotations\nfrom typing import Dict, Optional\n\ndef log_tokenizer_run(*, run_name: str, stats: Dict[str, float], params: Optional[Dict[str, str]] = None, artifacts: Optional[Dict[str, object]] = None):\n    try:\n        import mlflow  # type: ignore\n    except Exception:\n        return None\n    with mlflow.start_run(run_name=run_name) as active_run:  # type: ignore\n        for k, v in (stats or {}).items():\n            try:\n                mlflow.log_metric(k, float(v))\n            except Exception:\n                pass\n        if params:\n            mlflow.log_params(params)\n        if artifacts:\n            for name, payload in artifacts.items():\n                try:\n                    mlflow.log_dict(payload, f\"tokenizer/{name}.json\")  # type: ignore[attr-defined]\n                except Exception:\n                    pass\n        return active_run.info.run_id  # type: ignore[attr-defined]\n"
+    },
+    {
+      "path": "tests/unit/test_tokenizer.py",
+      "content": "\nfrom pathlib import Path\nfrom ttlab.core.tokenizer import train_or_import_tokenizer\n\ndef test_manifest_written(tmp_path: Path):\n    # Minimal dataset.manifest.json stub\n    m = tmp_path / \"dataset.manifest.json\"\n    m.write_text('{\"dataset_id\":\"toy-v1\",\"splits\":{\"train\":{\"path\":\"'+str((tmp_path/\"train.jsonl\")).as_posix()+'\"}}}', encoding=\"utf-8\")\n    (tmp_path/\"train.jsonl\").write_text('{\"task\":\"lm\",\"text\":\"hi\"}\\n', encoding=\"utf-8\")\n    out = tmp_path / \"out\"\n    result = train_or_import_tokenizer(dataset_manifest=m, algo=\"bpe\", vocab_size=100, norm=\"nfc\", lower=True, punct_policy=\"keep\", seed=13, out_dir=out, external_tokenizer=None)\n    assert \"manifest\" in result and (out/\"tokenizer.manifest.json\").exists()\n"
+    },
+    {
+      "path": "tests/integration/test_tok_cli.py",
+      "content": "\nimport json\nfrom pathlib import Path\nfrom typer.testing import CliRunner\nfrom ttlab.cli.tok import app\n\ndef test_tok_train_cli(tmp_path: Path):\n    m = tmp_path / \"dataset.manifest.json\"\n    train = tmp_path / \"train.jsonl\"\n    train.write_text('{\"task\":\"lm\",\"text\":\"hello world\"}\\n', encoding=\"utf-8\")\n    m.write_text('{\"dataset_id\":\"toy-v1\",\"splits\":{\"train\":{\"path\":\"'+str(train.as_posix())+'\"}}}', encoding=\"utf-8\")\n    runner = CliRunner()\n    result = runner.invoke(app, [\"tok:train\",\"--dataset-manifest\", str(m), \"--algo\",\"bpe\",\"--vocab-size\",\"100\",\"--out\", str(tmp_path/\"out\")])\n    assert result.exit_code == 0\n    payload = json.loads(result.stdout)\n    assert \"manifest\" in payload\n"
+    },
+    {
+      "path": "tests/e2e/test_tok_pipeline_smoke.py",
+      "content": "\n# Placeholder: dataset.manifest -> tok:train -> tok:inspect -> artifacts exist\ndef test_placeholder():\n    assert True\n"
+    },
+    {
+      "path": ".pre-commit-config.yaml",
+      "content": "\nrepos:\n  - repo: https://github.com/psf/black\n    rev: 24.3.0\n    hooks:\n      - id: black\n  - repo: https://github.com/astral-sh/ruff-pre-commit\n    rev: v0.5.0\n    hooks:\n      - id: ruff\n  - repo: https://github.com/pre-commit/mirrors-mypy\n    rev: v1.10.0\n    hooks:\n      - id: mypy\n"
+    },
+    {
+      "path": "pyproject.toml",
+      "content": "\n[project]\nname = \"tiny-transformer-lab\"\nversion = \"0.0.0\"\nrequires-python = \">=3.10\"\ndependencies = [\n  \"typer>=0.12\",\n  \"pyyaml>=6\",\n  \"tokenizers>=0.14,<0.16\",\n]\n\n[project.optional-dependencies]\nmlflow = [\"mlflow>=2.10\"]\n\n[tool.black]\nline-length = 100\n\n[tool.ruff]\nline-length = 100\n"
+    },
+    {
+      "path": ".github/workflows/spec-check.yml",
+      "content": "\nname: spec-check\non: [push, pull_request]\njobs:\n  check:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - name: Ensure B1 spec file exists\n        run: test -f spec/B1/tiny-transformer-lab.B1.spec.v2.json\n      - name: Validate stage and version\n        run: |\n          python - <<'PY'\n          import json, sys\n          with open('spec/B1/tiny-transformer-lab.B1.spec.v2.json','r',encoding='utf-8') as f:\n              d=json.load(f)\n          assert d.get('version')=='v2', 'Spec version must be v2'\n          assert d.get('stage')=='B1', 'Spec stage must be B1'\n          PY\n"
+    },
+    {
+      "path": "docs/TTL-B1-Overview.md",
+      "content": "\n# TTL B1 — Overview\n**Purpose:** Provide a standardized tokenizer layer (char/BPE/Unigram) for tiny-transformer-lab.\n**Integration:** toy-lang-lab (A2) → TTL B1 (tokenizer) → TTL B2 (encoding) → C-phase (training).\n**Outputs:** tokenizer.json, tokenizer.manifest.json, tokenizer.report.json (all logged to MLflow/MinIO).\n"
+    },
+    {
+      "path": "docs/TTL-B1-CLI.md",
+      "content": "\n# CLI — tok:train / tok:inspect\n## tok:train\n```bash\nttl tok:train --dataset-manifest D:\\...\\dataset.manifest.json --algo bpe --vocab-size 8000 --norm nfc --lower --seed 13 --out out/tokenizer\n```\n**Exit codes:** 0 OK, 2 INVALID_INPUT, 3 IO_ERROR, 4 UNKNOWN\n\n## tok:inspect\n```bash\nttl tok:inspect --tokenizer out/tokenizer/tokenizer.json --dataset-manifest D:\\...\\dataset.manifest.json --out out/tokenizer\n```\n"
+    },
+    {
+      "path": "docs/TTL-B1-Design.md",
+      "content": "\n# Design\nComponents: CLI (tok.py), Core (tokenizer.py), Reports (tok_report.py), Registry (index.json), MLflow utils.\nDataflow: dataset.manifest → tok:train → tokenizer.json → tok:inspect → tokenizer.report.json → MLflow.\nError handling: explicit exit codes; missing files → IO_ERROR; invalid args/data → INVALID_INPUT.\nDeterminism: fixed seed governs trainer and iteration order.\n"
+    },
+    {
+      "path": "docs/TTL-B1-Metrics.md",
+      "content": "\n# Metrics\n**SLIs/SLOs:** coverage >= 90%, train_time_sec_per_1M_chars <= 120, mlflow_logging_success = 100%.\n**Reported:** oov_rate, avg_tokens_per_sample, tokens_len_p50/p95, coverage_per_task, train_time_sec.\nLogged to MLflow as metrics; reports saved as tokenizer.report.json.\n"
+    },
+    {
+      "path": "docs/TTL-B1-Registry.md",
+      "content": "\n# Registry & Manifests\ntokenizer.manifest.json fields: tokenizer_id, algo, vocab_size, normalizer, special_tokens, seed, created_at,\nsource_dataset_id, source_manifest_path, input_paths_sha256, tokenizer_json_sha256.\n"
+    },
+    {
+      "path": "docs/TTL-B1-Testing.md",
+      "content": "\n# Testing\n**Pyramid:** unit > integration > e2e.\nRun locally:\n```bash\npytest -q\n```\nDiagnosing CLI tests: print `result.stdout` and `result.exit_code`.\n"
+    },
+    {
+      "path": "docs/TTL-B1-ADR.md",
+      "content": "\n# ADRs\n- ADR-B1-01: Support char/BPE/Unigram and export HuggingFace tokenizer.json (accepted).\n- ADR-B1-02: Default normalization NFC+lower; configurable via flags (accepted).\n- ADR-B1-03: Log to MLflow and store artifacts in MinIO/S3 (accepted).\n"
+    },
+    {
+      "path": ".github/PULL_REQUEST_TEMPLATE.md",
+      "content": "\n## Problem\n- What is being solved?\n\n## Solution\n- Summary of changes.\n\n## Tests\n- Unit/Integration/E2E included in this PR.\n\n## Risks / Rollback\n- Known risks and mitigation.\n\n## Screenshots / Logs\n- Optional evidence.\n\n## Checklist\n- [ ] Conventional commit\n- [ ] Lint/Type check pass\n- [ ] Spec references updated (if needed)\n"
+    }
+  ],
+  "artifacts": {
+    "python": [
+      "ttlab/cli/tok.py",
+      "ttlab/core/tokenizer.py",
+      "ttlab/core/tok_report.py",
+      "ttlab/utils/mlflow_utils.py",
+      "ttlab/utils/files.py"
+    ],
+    "json": [
+      "out/tokenizer.json",
+      "out/tokenizer.manifest.json",
+      "out/tokenizer.report.json"
+    ],
+    "docs": [
+      "spec/B1/tiny-transformer-lab.B1.spec.v2.json",
+      "spec/B1/README.md",
+      "docs/TTL-B1-Overview.md",
+      "docs/TTL-B1-CLI.md",
+      "docs/TTL-B1-Design.md",
+      "docs/TTL-B1-Metrics.md",
+      "docs/TTL-B1-Registry.md",
+      "docs/TTL-B1-Testing.md",
+      "docs/TTL-B1-ADR.md",
+      ".github/PULL_REQUEST_TEMPLATE.md"
+    ],
+    "tests": [
+      "tests/unit/test_tokenizer.py",
+      "tests/integration/test_tok_cli.py",
+      "tests/e2e/test_tok_pipeline_smoke.py"
+    ],
+    "ci": [
+      ".github/workflows/spec-check.yml"
+    ]
+  },
+  "docs": {
+    "language": "English-only",
+    "style": "Clear, concise, reproducible; include code blocks and CLI examples; diagrams can be ASCII",
+    "pages": [
+      {
+        "path": "docs/TTL-B1-Overview.md",
+        "purpose": "High-level purpose, inputs/outputs, integration map (TLG → TTL B1 → B2 → C)"
+      },
+      {
+        "path": "docs/TTL-B1-CLI.md",
+        "purpose": "Command reference for tok:train and tok:inspect with examples and exit codes"
+      },
+      {
+        "path": "docs/TTL-B1-Design.md",
+        "purpose": "ARD summary, components, dataflow, error handling, determinism"
+      },
+      {
+        "path": "docs/TTL-B1-Metrics.md",
+        "purpose": "Metrics definitions (SLIs/SLOs), MLflow logging, examples of reports"
+      },
+      {
+        "path": "docs/TTL-B1-Registry.md",
+        "purpose": "Tokenizer registry structure, manifest fields, hashing policy"
+      },
+      {
+        "path": "docs/TTL-B1-Testing.md",
+        "purpose": "Test pyramid, how to run tests locally/CI, diagnosing failures"
+      },
+      {
+        "path": "docs/TTL-B1-ADR.md",
+        "purpose": "List and rationale of B1 ADRs with cross-links"
+      }
+    ],
+    "governance": {
+      "conventional_commits": "feat/fix/chore/test + task id (e.g., feat(tok): add BPE trainer (#B1-12))",
+      "pr_template": ".github/PULL_REQUEST_TEMPLATE.md",
+      "review_checklist": [
+        "Clarity/correctness",
+        "Performance/memory implications",
+        "i18n (English-only docs)",
+        "Security (no secrets, safe paths)"
+      ],
+      "branch_policy": "Short-lived feature branches; frequent merges; tests in the same PR"
+    },
+    "non_functional": [
+      "Determinism under fixed seed",
+      "Reasonable training time (<= 120s per 1M chars on baseline HW)",
+      "Traceability: dataset → tokenizer manifest with hashes",
+      "Data safety: no PII; artifacts are text/JSON only"
+    ]
+  }
+}

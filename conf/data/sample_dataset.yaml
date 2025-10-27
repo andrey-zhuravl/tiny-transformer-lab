@@ -1,0 +1,16 @@
+dataset:
+  required_fields:
+    - id
+    - meta
+    - task
+  meta_fields:
+    required:
+      - grammar_rev
+      - seed
+      - split
+      - template_index
+task:
+  required:
+    - lm
+    - seq2seq
+    - cls

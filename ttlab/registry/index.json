@@ -1,60 +1,60 @@
 {
   "tokenizers": [
     {
-      "tokenizer_id": "bpe-64-nfc-lower-keep-s13",
-      "manifest_path": "C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-448\\test_tok_train_cli0\\artifacts\\tokenizer.manifest.json",
-      "algo": "bpe",
-      "vocab_size": 64,
-      "created_at": "2025-10-28T04:36:24Z"
-    },
-    {
       "tokenizer_id": "unigram-64-none-nolower-keep-s7",
-      "manifest_path": "C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-365\\test_special_tokens_present0\\unigram\\tokenizer.manifest.json",
+      "manifest_path": "C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-483\\test_special_tokens_present0\\unigram\\tokenizer.manifest.json",
       "algo": "unigram",
       "vocab_size": 64,
-      "created_at": "2025-10-27T13:04:07Z"
+      "created_at": "2025-10-28T07:56:38Z"
     },
     {
-      "tokenizer_id": "bpe-64-nfc-nolower-keep-s1",
-      "manifest_path": "C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-364\\test_manifest_hashes0\\bpe\\tokenizer.manifest.json",
+      "tokenizer_id": "bpe-64-nfc-lower-keep-s13",
+      "manifest_path": "C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-483\\test_tok_train_cli0\\artifacts\\tokenizer.manifest.json",
       "algo": "bpe",
       "vocab_size": 64,
-      "created_at": "2025-10-27T13:04:00Z"
-    },
-    {
-      "tokenizer_id": "bpe-64-nfc-lower-keep-s42",
-      "manifest_path": "C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-363\\test_tokenizer_train_char_bpe_0\\bpe\\tokenizer.manifest.json",
-      "algo": "bpe",
-      "vocab_size": 64,
-      "created_at": "2025-10-27T13:03:52Z"
-    },
-    {
-      "tokenizer_id": "unigram-64-nfc-lower-keep-s42",
-      "manifest_path": "C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-363\\test_tokenizer_train_char_bpe_0\\unigram\\tokenizer.manifest.json",
-      "algo": "unigram",
-      "vocab_size": 64,
-      "created_at": "2025-10-27T13:03:52Z"
+      "created_at": "2025-10-28T07:56:37Z"
     },
     {
       "tokenizer_id": "char-64-nfc-lower-keep-s42",
-      "manifest_path": "C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-363\\test_tokenizer_train_char_bpe_0\\char\\tokenizer.manifest.json",
+      "manifest_path": "C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-483\\test_tokenizer_train_char_bpe_0\\char\\tokenizer.manifest.json",
       "algo": "char",
       "vocab_size": 64,
-      "created_at": "2025-10-27T13:03:50Z"
+      "created_at": "2025-10-28T07:56:37Z"
+    },
+    {
+      "tokenizer_id": "bpe-64-nfc-lower-keep-s42",
+      "manifest_path": "C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-483\\test_tokenizer_train_char_bpe_0\\bpe\\tokenizer.manifest.json",
+      "algo": "bpe",
+      "vocab_size": 64,
+      "created_at": "2025-10-28T07:56:37Z"
+    },
+    {
+      "tokenizer_id": "unigram-64-nfc-lower-keep-s42",
+      "manifest_path": "C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-483\\test_tokenizer_train_char_bpe_0\\unigram\\tokenizer.manifest.json",
+      "algo": "unigram",
+      "vocab_size": 64,
+      "created_at": "2025-10-28T07:56:37Z"
+    },
+    {
+      "tokenizer_id": "bpe-64-nfc-nolower-keep-s1",
+      "manifest_path": "C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-483\\test_manifest_hashes0\\bpe\\tokenizer.manifest.json",
+      "algo": "bpe",
+      "vocab_size": 64,
+      "created_at": "2025-10-28T07:56:37Z"
     },
     {
       "tokenizer_id": "bpe-64-nfc-lower-keep-s5",
-      "manifest_path": "C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-358\\test_dataset_manifest_to_tok_t0\\artifacts\\tokenizer.manifest.json",
+      "manifest_path": "C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-483\\test_dataset_manifest_to_tok_t0\\artifacts\\tokenizer.manifest.json",
       "algo": "bpe",
       "vocab_size": 64,
-      "created_at": "2025-10-27T07:32:04Z"
+      "created_at": "2025-10-28T07:56:35Z"
     },
     {
       "tokenizer_id": "bpe-5000-nfc-lower-keep-s42",
       "manifest_path": "D:\\garden\\lab\\tiny-transformer-lab\\out\\tok\\bpe5000\\tokenizer.manifest.json",
       "algo": "bpe",
       "vocab_size": 5000,
-      "created_at": "2025-10-25T10:56:51Z"
+      "created_at": "2025-10-28T07:36:26Z"
     }
   ]
 }

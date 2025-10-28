@@ -4,10 +4,11 @@ import json
 from pathlib import Path
 
 import pytest
+from typer.testing import CliRunner
 
-from ttlab.cli import run
+from ttlab.cli.cli_process import process_app
 from ttlab.core.validate import ExitCode
-
+from ttlab.utils.paths import get_project_path
 
 pytestmark = pytest.mark.e2e_smoke
 
@@ -28,7 +29,7 @@ def _rows() -> list[dict[str, object]]:
                 "split": "train",
                 "template_index": index,
             },
-            "task": {"type": "lm", "text": f"sample text {index}"},
+            "task": "lm"
         }
         for index in range(8)
     ]
@@ -39,26 +40,21 @@ def test_end_to_end_process_and_manifest_smoke(tmp_path: Path) -> None:
     _write_jsonl(dataset_path, _rows())
 
     out_dir = tmp_path / "out"
+    runner = CliRunner()
 
-    exit_code = run(
+    result = runner.invoke(
+        process_app,
         [
-            "data:process",
-            "--in",
-            str(dataset_path),
-            "--schema",
-            str(Path("conf/data/sample_dataset.yaml")),
-            "--format",
-            "JSONL",
-            "--splits",
-            "train=0.75",
-            "dev=0.125",
-            "test=0.125",
-            "--out-dir",
-            str(out_dir),
+            "run",
+            "--in", str(dataset_path),
+            "--schema", str(get_project_path("conf/data/sample_dataset.yaml")),
+            "--format", "JSONL",
+            "--seed", "17",
+            "--split", "train=0.75,dev=0.125,test=0.125",
+            "--out", str(out_dir),
         ]
     )
-
-    assert exit_code is ExitCode.OK
+    assert result.exit_code == ExitCode.OK.value
 
     manifest_path = out_dir / "dataset.manifest.json"
     assert manifest_path.exists()

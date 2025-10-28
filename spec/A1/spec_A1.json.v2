@@ -4,12 +4,12 @@
   "version": "v2",
   "status": "implemented",
   "artifacts": {
-    "cli": "ttlab/cli/data_validate.py",
+    "cli": "ttlab/cli/cli_validate.py",
     "core": "ttlab/core/validate.py",
     "schema": "conf/data/sample_dataset.yaml",
     "tests": [
       "tests/unit/test_validate.py",
-      "tests/integration/test_cli.py"
+      "tests/integration/test_cli_validate.py"
     ]
   },
   "commands": [

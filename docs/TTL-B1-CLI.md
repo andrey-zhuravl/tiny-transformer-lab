@@ -1,12 +1,13 @@
-# CLI — tok:train / tok:inspect
+# CLI — tokenizer train / tokenizer inspect
 
-## tok:train
+## tokenizer train
 ```bash
-ttl tok:train --dataset-manifest path/to/dataset.manifest.json --algo bpe --vocab-size 8000 --norm nfc --lower --seed 13 --out out/tokenizer
+ttlab tokenizer train --dataset-manifest .\out\dataset\dataset.manifest.json --algo bpe --vocab-size 5000 --norm nfc --lower --punct-policy keep --out .\out\tok\bpe5000 --seed 42
 ```
 **Exit codes:** 0 OK, 2 INVALID_INPUT, 3 IO_ERROR, 4 UNKNOWN
 
-## tok:inspect
+## tokenizer inspect
 ```bash
-ttl tok:inspect --tokenizer out/tokenizer/tokenizer.json --dataset-manifest path/to/dataset.manifest.json --out out/tokenizer
+ttlab tokenizer inspect --tokenizer .\out\tok\bpe5000\tokenizer.json --dataset-manifest .\out\dataset\dataset.manifest.json --out out/tokenizer
+```
 ```

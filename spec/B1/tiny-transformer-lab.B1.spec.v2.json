@@ -55,7 +55,7 @@
     "cli": {
       "commands": [
         {
-          "name": "tok:train",
+          "name": "tokenizer train",
           "args": [
             "--dataset-manifest <path>",
             "--algo {char,bpe,unigram}",
@@ -81,7 +81,7 @@
           }
         },
         {
-          "name": "tok:inspect",
+          "name": "tokenizer inspect",
           "args": [
             "--tokenizer <path/to/tokenizer.json>",
             "--dataset-manifest <path>",
@@ -262,7 +262,7 @@
       "content": "# TTL B1 — Tokenizer Suite & Registry\n\nThis spec is authoritative for the B1 phase. Keep this file and the JSON spec committed.\n"
     },
     {
-      "path": "ttlab/cli/tok.py",
+      "path": "ttlab/cli/tokenizer.py",
       "content": "\nfrom __future__ import annotations\nimport json\nfrom pathlib import Path\nimport typer\n\ntry:\n    from ttlab.cli import app  # reuse global app if exists\nexcept Exception:\n    app = typer.Typer(no_args_is_help=True)\n\nfrom ..core.tokenizer import train_or_import_tokenizer, inspect_tokenizer\n\nclass ExitCode(int):\n    OK = 0\n    INVALID_INPUT = 2\n    IO_ERROR = 3\n    UNKNOWN = 4\n\n@app.command(name=\"tok:train\")\ndef tok_train(\n    dataset_manifest: Path = typer.Option(..., \"--dataset-manifest\"),\n    algo: str = typer.Option(..., \"--algo\", help=\"char|bpe|unigram\"),\n    vocab_size: int = typer.Option(8000, \"--vocab-size\"),\n    norm: str = typer.Option(\"nfc\", \"--norm\", help=\"none|nfc\"),\n    lower: bool = typer.Option(True, \"--lower/--no-lower\"),\n    punct_policy: str = typer.Option(\"keep\", \"--punct-policy\", help=\"keep|strip|space\"),\n    seed: int = typer.Option(13, \"--seed\"),\n    out_dir: Path = typer.Option(Path(\"out/tokenizer\"), \"--out\"),\n    use_external_tokenizer: Path | None = typer.Option(None, \"--use-external-tokenizer\"),\n) -> None:\n    try:\n        result = train_or_import_tokenizer(\n            dataset_manifest=dataset_manifest,\n            algo=algo,\n            vocab_size=vocab_size,\n            norm=norm,\n            lower=lower,\n            punct_policy=punct_policy,\n            seed=seed,\n            out_dir=out_dir,\n            external_tokenizer=use_external_tokenizer,\n        )\n    except FileNotFoundError as exc:\n        typer.echo(f\"[IO] {exc}\")\n        raise typer.Exit(code=ExitCode.IO_ERROR)\n    except ValueError as exc:\n        typer.echo(f\"[INVALID] {exc}\")\n        raise typer.Exit(code=ExitCode.INVALID_INPUT)\n    except Exception as exc:\n        typer.echo(f\"[UNKNOWN] {exc}\")\n        raise typer.Exit(code=ExitCode.UNKNOWN)\n\n    typer.echo(json.dumps(result, ensure_ascii=False, indent=2))\n\n@app.command(name=\"tok:inspect\")\ndef tok_inspect(\n    tokenizer_path: Path = typer.Option(..., \"--tokenizer\"),\n    dataset_manifest: Path = typer.Option(..., \"--dataset-manifest\"),\n    out_dir: Path = typer.Option(Path(\"out/tokenizer\"), \"--out\"),\n) -> None:\n    try:\n        report = inspect_tokenizer(tokenizer_path=tokenizer_path, dataset_manifest=dataset_manifest, out_dir=out_dir)\n    except FileNotFoundError as exc:\n        typer.echo(f\"[IO] {exc}\")\n        raise typer.Exit(code=ExitCode.IO_ERROR)\n    except Exception as exc:\n        typer.echo(f\"[UNKNOWN] {exc}\")\n        raise typer.Exit(code=ExitCode.UNKNOWN)\n\n    typer.echo(json.dumps(report, ensure_ascii=False, indent=2))\n\nif __name__ == \"__main__\":\n    app()\n"
     },
     {
@@ -340,7 +340,7 @@
   ],
   "artifacts": {
     "python": [
-      "ttlab/cli/tok.py",
+      "ttlab/cli/cli_tokenizer.py",
       "ttlab/core/tokenizer.py",
       "ttlab/core/tok_report.py",
       "ttlab/utils/mlflow_utils.py",

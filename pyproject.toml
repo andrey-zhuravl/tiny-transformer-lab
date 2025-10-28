@@ -14,7 +14,7 @@ include = ["ttlab*"]
 exclude = ["tests*", "conf*", "specs*"]
 
 [project.scripts]
-ttlab = "ttlab.cli.main:app"
+ttlab = "ttlab.cli.main:main"
 
 [project.optional-dependencies]
 mlflow = ["mlflow>=2.16.0"]

@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+
+from typer.testing import CliRunner
+
 from ttlab.core.validate import ExitCode
 from ttlab.utils.paths import get_project_path
-
+from ttlab.cli.cli_process import process_app
 
 def _write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
     with path.open("w", encoding="utf-8") as handle:
@@ -34,28 +37,22 @@ def test_cli_data_process_success(tmp_path: Path) -> None:
 
     out_dir = tmp_path / "out"
     metrics_dir = tmp_path / "metrics"
-
-    exit_code = run(
+    runner = CliRunner()
+    result = runner.invoke(
+        process_app,
         [
-            "data:process",
-            "--in",
-            str(dataset_path),
-            "--schema",
-            str(get_project_path("conf/data/sample_dataset.yaml")),
-            "--format",
-            "JSONL",
-            "--split",
-            "train=0.7,dev=0.2,test=0.1",
-            "--seed",
-            "17",
-            "--out-dir",
-            str(out_dir),
-            "--metrics-dir",
-            str(metrics_dir),
+            "run",
+            "--in", str(dataset_path),
+            "--schema", str(get_project_path("conf/data/sample_dataset.yaml")),
+            "--format", "JSONL",
+            "--split", "train=0.7,dev=0.2,test=0.1",
+            "--seed", "17",
+            "--out", str(out_dir),
+            "--metrics", str(metrics_dir),
         ]
     )
 
-    assert exit_code is ExitCode.OK
+    assert result.exit_code == 0
     assert (out_dir / "dataset.manifest.json").exists()
     assert (out_dir / "dataset_stats.json").exists()
     for split in ("train", "dev", "test"):
@@ -72,21 +69,18 @@ def test_cli_data_process_invalid_schema(tmp_path: Path) -> None:
 
     bad_schema = tmp_path / "schema.yaml"
     bad_schema.write_text("invalid: true\n")
+    runner = CliRunner()
 
-    exit_code = run(
+    result = runner.invoke(
+        process_app,
         [
-            "data:process",
-            "--in",
-            str(dataset_path),
-            "--schema",
-            str(bad_schema),
-            "--format",
-            "JSONL",
-            "--split",
-            "train=0.7,dev=0.2,test=0.1",
-            "--seed",
-            "17",
+            "run",
+            "--in", str(dataset_path),
+            "--schema", str(bad_schema),
+            "--format", "JSONL",
+            "--split", "train=0.7,dev=0.2,test=0.1",
+            "--seed", "17",
         ]
     )
 
-    assert exit_code is ExitCode.INVALID_INPUT
+    assert result.exit_code == ExitCode.INVALID_INPUT.value

@@ -1,4 +1,4 @@
-from ttlab.cli.main import main_app
+from ttlab.cli.main import main
 
 if __name__ == "__main__":
-    main_app()
+    main()

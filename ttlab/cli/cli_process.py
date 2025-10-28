@@ -6,7 +6,6 @@ import enum
 from pathlib import Path
 from typing import Iterable, Mapping, Optional
 
-from click.exceptions import Exit
 
 from ttlab.core.process import DatasetProcessingError, process_dataset
 from ttlab.core.validate import (
@@ -21,7 +20,7 @@ from ttlab.utils.metrics_writer import MetricsWriter
 
 import typer
 
-app = typer.Typer(help="Data processing utilities")
+process_app = typer.Typer(help="Data processing utilities")
 
 VALID_FORMATS = {DATA_FORMAT_JSONL, DATA_FORMAT_PARQUET}
 
@@ -54,9 +53,8 @@ def _parse_splits(values: str) -> Mapping[str, float]:
 
     return splits
 
-@app.command("run")
+@process_app.command("run")
 def run_data_process(
-    *,
     in_path: Path = typer.Option(..., "--in", help="Path to in"),
     schema_path: Path = typer.Option(..., "--schema", help="Path to schema"),
     data_format: str = typer.Option(DATA_FORMAT_JSONL, "--format", help="schema format"),
@@ -137,14 +135,13 @@ def returns_exit_code(fn):
         raise typer.Exit(code=code)
     return wrapper
 
-@app.command("run_test")
+@process_app.command("run_test")
 @returns_exit_code
 def run_test(
-    *,
     in_path: Path = typer.Option(..., "--in", help="Path to in")
 ) -> ExitCode:
 
     return ExitCode.INVALID_INPUT
 
-
-__all__ = ["run_data_process", "run_test"]
+if __name__ == "__main__":   # локальный, одиночный запуск этой группы
+    process_app()

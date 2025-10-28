@@ -2,10 +2,10 @@
   "tokenizers": [
     {
       "tokenizer_id": "bpe-64-nfc-lower-keep-s13",
-      "manifest_path": "C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-386\\test_tok_train_cli0\\artifacts\\tokenizer.manifest.json",
+      "manifest_path": "C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-448\\test_tok_train_cli0\\artifacts\\tokenizer.manifest.json",
       "algo": "bpe",
       "vocab_size": 64,
-      "created_at": "2025-10-27T14:13:51Z"
+      "created_at": "2025-10-28T04:36:24Z"
     },
     {
       "tokenizer_id": "unigram-64-none-nolower-keep-s7",

@@ -1,17 +1,16 @@
 import typer
-from .cli_process import app as process_app
-from .cli_tokenizer import app as tok_app
-from .cli_validate import app as validate_app
+from ttlab.cli.cli_tokenizer import tokenizer_app
+from ttlab.cli.cli_validate import validate_app
+from ttlab.cli.cli_process import process_app
 
-app = typer.Typer(help="Tiny Transformer Lab CLI")
+main_app = typer.Typer(help="Tiny Transformer Lab CLI")
 
 # Подключаем доменные группы как подкоманды верхнего уровня:
-app.add_typer(process_app, name="process")
-app.add_typer(tok_app, name="tok")
-app.add_typer(validate_app, name="validate")
+main_app.add_typer(tokenizer_app, name="tokenizer")
+main_app.add_typer(validate_app, name="validate")
+main_app.add_typer(process_app, name="process")
 
 def main() -> None:
-    app()
+    main_app()
 
-if __name__ == "__main__":
-    main()
+__all__ = ["main", "main_app", "tokenizer_app", "validate_app", "process_app"]

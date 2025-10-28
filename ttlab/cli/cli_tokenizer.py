@@ -14,10 +14,10 @@ class ExitCode(int):
     IO_ERROR = 3
     UNKNOWN = 4
 
-app = typer.Typer(help="Tokenizer utilities")
+tokenizer_app = typer.Typer(help="Tokenizer utilities")
 
-@app.command("train")
-def tok_train(
+@tokenizer_app.command("train")
+def tokenizer_train(
     dataset_manifest: Path = typer.Option(..., "--dataset-manifest", help="Path to dataset.manifest.json"),
     algo: str = typer.Option(..., "--algo", help="Tokenization algorithm: char|bpe|unigram"),
     vocab_size: int = typer.Option(8000, "--vocab-size", help="Target vocabulary size"),
@@ -54,8 +54,8 @@ def tok_train(
     return ExitCode.OK
 
 
-@app.command("inspect")
-def tok_inspect(
+@tokenizer_app.command("inspect")
+def tokenizer_inspect(
     tokenizer_path: Path = typer.Option(..., "--tokenizer", help="Path to tokenizer.json"),
     dataset_manifest: Path = typer.Option(..., "--dataset-manifest", help="Dataset manifest"),
     out_dir: Path = typer.Option(Path("out/tokenizer"), "--out", help="Output directory"),
@@ -75,5 +75,5 @@ def tok_inspect(
     typer.echo(json.dumps(report, ensure_ascii=False, indent=2))
 
 
-if __name__ == "__main__":  # pragma: no cover
-    app()
+if __name__ == "__main__":   # локальный, одиночный запуск этой группы
+    tokenizer_app()

@@ -3,12 +3,13 @@ from pathlib import Path
 
 import pytest
 
+from ttlab.cli.cli_tokenizer import tokenizer_app
+
 pytest.importorskip("tokenizers")
 pytest.importorskip("typer")
 
 from typer.testing import CliRunner
 
-from ttlab.cli.cli_tokenizer import app
 
 def _write_dataset(tmp_path: Path) -> Path:
     train = tmp_path / "train.jsonl"
@@ -39,7 +40,7 @@ def test_tok_train_cli(tmp_path: Path) -> None:
     dataset_manifest = _write_dataset(tmp_path)
     out_dir = tmp_path / "artifacts"
     result = runner.invoke(
-        app,
+        tokenizer_app,
         [
             "train",
             "--dataset-manifest",
@@ -57,7 +58,7 @@ def test_tok_train_cli(tmp_path: Path) -> None:
     assert Path(payload["tokenizer_path"]).exists()
 
     inspect_result = runner.invoke(
-        app,
+        tokenizer_app,
         [
             "inspect",
             "--tokenizer", payload["tokenizer_path"],

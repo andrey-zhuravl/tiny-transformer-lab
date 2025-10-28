@@ -77,7 +77,6 @@ def test_manifest_creation_fields(tmp_path: Path) -> None:
         split_ratios={"train": 0.6, "dev": 0.2, "test": 0.2},
         seed=99,
         output_dir=tmp_path / "out",
-        log_to_mlflow=False,
     )
 
     assert result.manifest_path.exists()

@@ -11,7 +11,6 @@ from typing import Dict, Iterable, Iterator, List, Mapping, Optional
 
 from ..registry import update_registry
 from ..utils.files import ensure_dir, iter_jsonl_texts, read_json, sha256_file, sha256_map, write_json
-from ..utils.mlflow_utils import log_tokenizer_run
 from .tok_report import generate_report
 
 SPECIAL_TOKENS: List[str] = ["<pad>", "<bos>", "<eos>", "<unk>", "<sep>"]
@@ -349,22 +348,6 @@ def train_or_import_tokenizer(
     report_path = out_dir / "tokenizer.report.json"
     write_json(report_path, report)
 
-    mlflow_run_id = log_tokenizer_run(
-        run_name=manifest["tokenizer_id"],
-        stats=report.get("summary", {}),
-        params={
-            "algo": config.algo,
-            "vocab_size": str(config.vocab_size),
-            "lower": str(config.lower),
-            "norm": config.norm,
-            "punct_policy": config.punct_policy,
-        },
-        artifacts={
-            "manifest": manifest,
-            "report": report,
-        },
-    )
-
     registry_path = update_registry(manifest, manifest_path)
 
     return {
@@ -373,7 +356,7 @@ def train_or_import_tokenizer(
         "report_path": str(report_path),
         "manifest": manifest,
         "report": report,
-        "mlflow_run_id": mlflow_run_id,
+        "mlflow_run_id": None,
         "registry_path": str(registry_path),
     }
 
@@ -389,12 +372,5 @@ def inspect_tokenizer(*, tokenizer_path: Path, dataset_manifest: Path, out_dir: 
     report = generate_report(tokenizer=tokenizer, dataset_manifest=dataset_manifest, train_time_sec=None)
     report_path = Path(out_dir) / "tokenizer.report.json"
     write_json(report_path, report)
-
-    log_tokenizer_run(
-        run_name=f"inspect::{tokenizer_path.stem}",
-        stats=report.get("summary", {}),
-        params={"mode": "inspect"},
-        artifacts={"report": report},
-    )
 
     return {"report_path": str(report_path), "report": report}

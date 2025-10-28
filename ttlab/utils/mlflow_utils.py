@@ -1,123 +1,140 @@
-"""MLflow helper utilities used across TTL modules."""
 from __future__ import annotations
 
+import socket
+import subprocess
 from contextlib import contextmanager
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Optional
+from typing import Any, Dict, Iterable, Optional
 
-EXPERIMENT_NAME = "ttl-tokenizers"
-
-
-@dataclass(slots=True)
-class _NoOpRun:
-    """Fallback implementation used when MLflow is unavailable."""
-
-    run_id: Optional[str] = None
-
-    def log_metrics(self, metrics: Mapping[str, float]) -> None:  # pragma: no cover - trivial
-        return
-
-    def log_params(self, params: Mapping[str, Any]) -> None:  # pragma: no cover - trivial
-        return
-
-    def set_tags(self, tags: Mapping[str, Any]) -> None:  # pragma: no cover - trivial
-        return
-
-    def log_artifact(self, path: str, artifact_path: Optional[str] = None) -> None:  # pragma: no cover - trivial
-        return
+try:  # pragma: no cover - optional dependency
+    import mlflow
+except Exception:  # pragma: no cover - mlflow remains optional
+    mlflow = None  # type: ignore[assignment]
 
 
-@dataclass(slots=True)
-class _MLflowFacade:
-    client: Any
-    run: Any
+def _flatten(d: Dict[str, Any], prefix: str = "") -> Dict[str, Any]:
+    """Flatten a nested mapping using dot-separated keys."""
 
-    @property
-    def run_id(self) -> str:
-        return self.run.info.run_id
+    items: Dict[str, Any] = {}
+    for key, value in d.items():
+        name = f"{prefix}.{key}" if prefix else key
+        if isinstance(value, dict):
+            items |= _flatten(value, name)
+        else:
+            items[name] = value
+    return items
 
-    def log_metrics(self, metrics: Mapping[str, float]) -> None:
-        self.client.log_metrics(metrics)
 
-    def log_params(self, params: Mapping[str, Any]) -> None:
-        self.client.log_params(params)
+def _parse_tags(pairs: Iterable[str]) -> Dict[str, str]:
+    """Parse ``key=value`` pairs provided on the command line into a mapping."""
 
-    def set_tags(self, tags: Mapping[str, Any]) -> None:
-        self.client.set_tags(tags)
+    tags: Dict[str, str] = {}
+    for pair in pairs:
+        if "=" not in pair:
+            continue
+        key, value = pair.split("=", 1)
+        tags[key.strip()] = value.strip()
+    return tags
 
-    def log_artifact(self, path: str, artifact_path: Optional[str] = None) -> None:
-        self.client.log_artifact(path, artifact_path=artifact_path)
+
+def _git_commit() -> Optional[str]:
+    """Return the current git commit if available."""
+
+    try:
+        return (
+            subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+        )
+    except Exception:  # pragma: no cover - git optional at runtime
+        return None
 
 
 @contextmanager
-def mlflow_run(
+def start_tracking(
     enabled: bool,
-    *,
-    run_name: Optional[str] = None,
-    tags: Optional[Mapping[str, Any]] = None,
-) -> Iterable[object]:
-    """Context manager that yields an MLflow run facade or a no-op implementation."""
-
-    if not enabled:
-        yield _NoOpRun()
-        return
-
-    try:  # pragma: no cover - exercised only when MLflow is installed
-        import mlflow
-    except Exception:  # pragma: no cover - fallback path when MLflow unavailable
-        yield _NoOpRun()
-        return
-
-    active_run = mlflow.start_run(run_name=run_name)
-    try:
-        if tags:
-            mlflow.set_tags(dict(tags))
-        facade = _MLflowFacade(client=mlflow, run=active_run)
-        yield facade
-    finally:
-        mlflow.end_run()
-
-
-def log_tokenizer_run(
-    *,
+    experiment: str,
     run_name: str,
-    stats: Optional[Mapping[str, float]] = None,
-    params: Optional[Mapping[str, Any]] = None,
-    artifacts: Optional[Mapping[str, Any]] = None,
-) -> Optional[str]:
-    """Log metrics, params and artifacts to MLflow when the package is available."""
+    *,
+    uri: Optional[str] = None,
+    parent_run_id: Optional[str] = None,
+    tags: Optional[Dict[str, str]] = None,
+):
+    """Context manager that yields an active MLflow run when tracking is enabled."""
 
-    try:  # Import lazily so that MLflow remains optional in local setups.
-        import mlflow  # type: ignore
-    except Exception:
-        return None
+    if not enabled or mlflow is None:
+        yield None
+        return
 
-    mlflow.set_experiment(EXPERIMENT_NAME)
-    with mlflow.start_run(run_name=run_name) as active_run:  # type: ignore[attr-defined]
-        if stats:
-            for key, value in stats.items():
-                try:
-                    mlflow.log_metric(key, float(value))
-                except Exception:
-                    continue
-        if params:
-            for key, value in params.items():
-                try:
-                    mlflow.log_param(key, value)
-                except Exception:
-                    continue
-        if artifacts:
-            for name, payload in artifacts.items():
-                artifact_path = Path("tokenizer")
-                try:
-                    if isinstance(payload, (str, Path)):
-                        mlflow.log_artifact(str(payload), artifact_path=str(artifact_path))
-                    else:
-                        mlflow.log_dict(payload, str(artifact_path / f"{name}.json"))  # type: ignore[attr-defined]
-                except Exception:
-                    continue
-        return active_run.info.run_id  # type: ignore[attr-defined]
+    if uri:
+        mlflow.set_tracking_uri(uri)
+
+    mlflow.set_experiment(experiment)
+
+    merged_tags = {
+        "host": socket.gethostname(),
+        "git.commit": _git_commit() or "",
+    }
+    if tags:
+        merged_tags |= tags
+
+    if parent_run_id:
+        with mlflow.start_run(run_id=parent_run_id):
+            with mlflow.start_run(run_name=run_name, nested=True, tags=merged_tags) as run:
+                yield run
+    else:
+        with mlflow.start_run(run_name=run_name, tags=merged_tags) as run:
+            yield run
 
 
-__all__ = ["mlflow_run", "log_tokenizer_run", "EXPERIMENT_NAME"]
+def log_params(params: Dict[str, Any]) -> None:
+    """Log parameters to the active MLflow run."""
+
+    if mlflow is None:
+        return
+
+    flattened = {
+        key: (value if isinstance(value, (int, float, bool)) else str(value))
+        for key, value in _flatten(params).items()
+    }
+    mlflow.log_params(flattened)
+
+
+def log_metrics(metrics: Dict[str, float], step: Optional[int] = None) -> None:
+    """Log metrics to the active MLflow run."""
+
+    if mlflow is None:
+        return
+
+    numeric_metrics = {key: float(value) for key, value in metrics.items()}
+    mlflow.log_metrics(numeric_metrics, step=step)
+
+
+def log_artifact(path: Path, artifact_path: Optional[str] = None) -> None:
+    """Log a file or directory as an MLflow artifact."""
+
+    if mlflow is None:
+        return
+
+    if path.is_dir():
+        mlflow.log_artifacts(str(path), artifact_path=artifact_path)
+    else:
+        mlflow.log_artifact(str(path), artifact_path=artifact_path)
+
+
+def log_json(obj: Dict[str, Any], artifact_file: str) -> None:
+    """Log a JSON payload as an MLflow artifact."""
+
+    if mlflow is None:
+        return
+
+    mlflow.log_dict(obj, artifact_file)
+
+
+__all__ = [
+    "_flatten",
+    "_parse_tags",
+    "start_tracking",
+    "log_params",
+    "log_metrics",
+    "log_artifact",
+    "log_json",
+]

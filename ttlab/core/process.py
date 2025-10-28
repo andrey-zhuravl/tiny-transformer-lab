@@ -351,7 +351,6 @@ def process_dataset(
     split_ratios: Mapping[str, float],
     seed: int,
     output_dir: Path,
-    log_to_mlflow: bool = False,
 ) -> ProcessResult:
     if not dataset_path.exists():
         raise FileNotFoundError(dataset_path)
@@ -408,30 +407,6 @@ def process_dataset(
         json.dump(stats.to_dict(), handle, indent=2, sort_keys=True)
 
     mlflow_run_id: Optional[str] = None
-    if log_to_mlflow:
-        from ttlab.utils.mlflow_utils import mlflow_run
-
-        with mlflow_run(
-            True,
-            run_name=dataset_id,
-            tags={"dataset_id": dataset_id, "format": data_format},
-        ) as run:
-            mlflow_run_id = getattr(run, "run_id", None)
-            run.log_params({"seed": seed, "format": data_format})
-            run.log_metrics(
-                {
-                    "rows_total": float(stats.rows_total),
-                    "valid_ratio": (
-                        validation_report.rows_valid / validation_report.rows_total
-                        if validation_report.rows_total
-                        else 0.0
-                    ),
-                    "noise_rate": stats.noise_rate,
-                    "duration_sec": duration,
-                }
-            )
-            run.log_artifact(str(manifest_path))
-            run.log_artifact(str(stats_path))
 
     return ProcessResult(
         manifest=manifest,

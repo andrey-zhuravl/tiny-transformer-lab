@@ -1,0 +1,8 @@
+defaults:
+  - model: vanilla
+  - trainer: default
+  - _self_
+
+tokenizer:
+  vocab_size: 32000
+  pad_token_id: 0

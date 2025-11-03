@@ -7,6 +7,7 @@ from ttlab.cli.cli_process import process_app
 from ttlab.cli.cli_tokenizer import tokenizer_app
 from ttlab.cli.cli_validate import validate_app
 from ttlab.cli.main import main_app
+from ttlab.cli.model_cli import model_app
 from ttlab.utils.paths import get_project_path
 
 
@@ -42,5 +43,6 @@ __all__ = [
     "tokenizer_app",
     "validate_app",
     "process_app",
+    "model_app",
     "_init_mlflow_env"
 ]

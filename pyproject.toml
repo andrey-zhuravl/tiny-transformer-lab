@@ -32,3 +32,9 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-ra"
+
+[tool.ttlab.mlflow]
+tracking_uri = "http://127.0.0.1:5000"
+s3_endpoint_url = "http://127.0.0.1:9000"
+aws_access_key_id = "admin"
+aws_secret_access_key = "adminadmin"

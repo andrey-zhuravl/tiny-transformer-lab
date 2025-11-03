@@ -5,6 +5,7 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
+from ttlab.cli import _init_mlflow_env
 from ttlab.core.validate import ExitCode
 from ttlab.utils.paths import get_project_path
 from ttlab.cli.cli_process import process_app
@@ -34,6 +35,7 @@ def _sample_rows() -> list[dict[str, object]]:
 def test_cli_data_process_success(tmp_path: Path) -> None:
     dataset_path = tmp_path / "dataset.jsonl"
     _write_jsonl(dataset_path, _sample_rows())
+    _init_mlflow_env()
 
     out_dir = tmp_path / "out"
     metrics_dir = tmp_path / "metrics"

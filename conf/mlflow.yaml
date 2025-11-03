@@ -1,0 +1,7 @@
+# D:/garden/lab/tiny-transformer-lab/conf/mlflow.yaml
+tracking_uri: http://127.0.0.1:5000
+s3_endpoint_url: http://127.0.0.1:9000
+aws_access_key_id: admin
+aws_secret_access_key: adminadmin
+aws_region: us-east-1
+default_experiment: ttlab.dev

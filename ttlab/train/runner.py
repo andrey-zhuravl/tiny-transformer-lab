@@ -8,7 +8,7 @@ import os
 import random
 import time
 from pathlib import Path
-from typing import Dict, List, Mapping, MutableMapping, Optional, Sequence
+from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Sequence
 
 import torch
 from omegaconf import DictConfig, OmegaConf
@@ -44,7 +44,15 @@ class JsonlDataset(Dataset):
         if attention is None:
             attention = [1] * len(row["input_ids"])
         attention_mask = torch.tensor(attention, dtype=torch.long)
-        return {"input_ids": input_ids, "attention_mask": attention_mask}
+        sample: Dict[str, Any] = {"input_ids": input_ids, "attention_mask": attention_mask}
+        labels = row.get("labels")
+        if labels is not None:
+            sample["labels"] = torch.tensor(labels, dtype=torch.long)
+        if "graph_edges" in row:
+            sample["graph_edges"] = row["graph_edges"]
+        if "roles" in row:
+            sample["roles"] = row["roles"]
+        return sample
 
 
 def _pad_sequences(tensors: Sequence[Tensor], *, padding_value: int) -> Tensor:
@@ -56,7 +64,28 @@ def collate_batch(batch: Sequence[Dict[str, Tensor]], pad_id: int = 0) -> Dict[s
     attention_masks = _pad_sequences(
         [sample["attention_mask"] for sample in batch], padding_value=0
     )
-    return {"input_ids": input_ids, "attention_mask": attention_masks}
+    collated: Dict[str, Any] = {"input_ids": input_ids, "attention_mask": attention_masks}
+
+    label_tensors = [sample.get("labels") for sample in batch]
+    if any(tensor is not None for tensor in label_tensors):
+        filtered = [tensor if tensor is not None else torch.tensor([], dtype=torch.long) for tensor in label_tensors]
+        collated["labels"] = _pad_sequences(filtered, padding_value=-100)
+
+    edge_lists = [sample.get("graph_edges") for sample in batch]
+    if any(edges is not None for edges in edge_lists):
+        collated["graph_edges"] = [list(edges) if edges is not None else [] for edges in edge_lists]
+
+    role_lists = [sample.get("roles") for sample in batch]
+    if any(role is not None for role in role_lists):
+        collated["roles"] = role_lists
+
+    return collated
+
+
+def collate(batch: Sequence[Dict[str, Tensor]], pad_id: int = 0) -> Dict[str, Tensor]:
+    """Alias maintained for external modules importing ``collate``."""
+
+    return collate_batch(batch, pad_id=pad_id)
 
 
 def _resolve_device(device_cfg: str) -> torch.device:
@@ -81,21 +110,43 @@ def _maybe_start_mlflow_run(mlflow_uri: Optional[str]):
     return mlflow.start_run()
 
 
+def _iter_scalar_params(mapping: Mapping[str, object], prefix: str) -> list[tuple[str, object]]:
+    items: list[tuple[str, object]] = []
+    for key, value in mapping.items():
+        name = f"{prefix}{key}" if prefix else key
+        if isinstance(value, Mapping):
+            items.extend(_iter_scalar_params(value, f"{name}."))
+        elif isinstance(value, (str, int, float, bool)):
+            items.append((name, value))
+    return items
+
+
 def _log_mlflow_params(cfg: Mapping[str, object]) -> None:
     if mlflow is None:
         return
     model_cfg = cfg.get("model", {})
     trainer_cfg = cfg.get("trainer", {})
     tokenizer_cfg = cfg.get("tokenizer", {})
-    for key, value in model_cfg.items():
-        if isinstance(value, (str, int, float, bool)):
-            mlflow.log_param(f"model.{key}", value)
-    for key, value in trainer_cfg.items():
-        if isinstance(value, (str, int, float, bool)):
-            mlflow.log_param(f"trainer.{key}", value)
-    vocab_size = tokenizer_cfg.get("vocab_size")
-    if isinstance(vocab_size, int):
-        mlflow.log_param("tokenizer.vocab_size", vocab_size)
+    if isinstance(model_cfg, Mapping):
+        for key, value in _iter_scalar_params(model_cfg, "model."):
+            mlflow.log_param(key, value)
+    if isinstance(trainer_cfg, Mapping):
+        for key, value in _iter_scalar_params(trainer_cfg, "trainer."):
+            mlflow.log_param(key, value)
+    if isinstance(tokenizer_cfg, Mapping):
+        for key, value in _iter_scalar_params(tokenizer_cfg, "tokenizer."):
+            mlflow.log_param(key, value)
+
+
+def _log_mlflow_tags(cfg: Mapping[str, object]) -> None:
+    if mlflow is None:
+        return
+    model_cfg = cfg.get("model", {})
+    kind = "unknown"
+    if isinstance(model_cfg, Mapping):
+        kind = str(model_cfg.get("kind", "unknown"))
+    family = kind if kind in {"hyper", "graph"} else "baseline"
+    mlflow.set_tags({"family": family, "task": "lm", "struct": "generalization"})
 
 
 def _log_configs(cfg: Mapping[str, object]) -> None:
@@ -217,7 +268,9 @@ def train(
     try:
         if run is not None:
             _log_mlflow_params(cfg)
+            _log_mlflow_tags(cfg)
             _log_configs(cfg)
+            mlflow.log_param("seed", seed)
 
         step = 0
         best_dev = math.inf
@@ -230,7 +283,10 @@ def train(
         while step < max_steps:
             for batch in train_loader:
                 step += 1
-                batch = {key: value.to(device) for key, value in batch.items()}
+                batch = {
+                    key: value.to(device) if isinstance(value, torch.Tensor) else value
+                    for key, value in batch.items()
+                }
                 optimizer.zero_grad(set_to_none=True)
                 outputs = model(batch)
                 loss = model.compute_loss(batch, outputs)
@@ -310,7 +366,10 @@ def evaluate(
     total_loss = 0.0
     total_tokens = 0
     for batch in loader:
-        batch = {key: value.to(device) for key, value in batch.items()}
+        batch = {
+            key: value.to(device) if isinstance(value, torch.Tensor) else value
+            for key, value in batch.items()
+        }
         outputs = model(batch)
         loss = model.compute_loss(batch, outputs)
         total_loss += float(loss.detach().cpu().item()) * _tokens_in_batch(batch)

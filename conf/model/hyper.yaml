@@ -1,0 +1,16 @@
+model:
+  kind: hyper
+  d_model: 128
+  n_layers: 2
+  n_heads: 4
+  ff_mult: 4
+  dropout: 0.1
+  max_seq_len: 256
+  tie_embeddings: true
+  hyper:
+    manifold: poincare
+    curvature_c: 1.0
+    proj_tau: 1.0
+    attn_in_tangent: true
+  head:
+    kind: lm

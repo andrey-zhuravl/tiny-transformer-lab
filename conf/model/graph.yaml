@@ -1,0 +1,19 @@
+model:
+  kind: graph
+  d_model: 128
+  n_layers: 2
+  n_heads: 4
+  ff_mult: 4
+  dropout: 0.1
+  max_seq_len: 256
+  tie_embeddings: true
+  graph:
+    bias:
+      type: adjacency
+      scale: 0.5
+      clip: 5.0
+    source:
+      format: sample
+      path: null
+  head:
+    kind: lm

@@ -10,6 +10,7 @@ import typer
 
 from ttlab.utils.paths import get_project_path
 from ttlab.train.bench import run as bench_run
+from ttlab.eval.roles import eval_roles_ckpt
 
 try:  # pragma: no cover - optional dependency handling
     from hydra import compose, initialize_config_dir  # type: ignore
@@ -171,3 +172,23 @@ def eval_cmd(
     runner = _import_runner()
     loss, ppl = runner.evaluate_ckpt(ckpt_path, data_dir, device=device)
     typer.echo(json.dumps({"dev/loss": loss, "dev/ppl": ppl}, indent=2))
+
+
+@model_app.command("eval-roles")
+def eval_roles_cmd(
+    ckpt_path: str = typer.Option(..., "--ckpt-path", help="Path to a saved checkpoint"),
+    data_dir: str = typer.Option(..., "--data-dir", help="Directory containing dev.jsonl"),
+    device: str | None = typer.Option(None, "--device", help="Optional evaluation device override"),
+) -> None:
+    """Compute role-wise accuracies for checkpoints that include role annotations."""
+
+    metrics = eval_roles_ckpt(ckpt_path, data_dir, device=device)
+    if not metrics:
+        typer.echo("No role annotations found in dataset; nothing to evaluate.")
+        return
+    output_dir = Path("eval")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / "roles.json"
+    output_path.write_text(json.dumps(metrics, indent=2), encoding="utf-8")
+    typer.echo(json.dumps(metrics, indent=2))
+

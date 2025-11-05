@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any, Dict, List
 
 import typer
 
 from ttlab.utils.paths import get_project_path
+from ttlab.train.bench import run as bench_run
 
 try:  # pragma: no cover - optional dependency handling
     from hydra import compose, initialize_config_dir  # type: ignore
@@ -126,20 +128,46 @@ def train_cmd(
     typer.echo(str(checkpoint))
 
 
+@model_app.command("bench")
+def bench_cmd(
+    models: str = typer.Option("vanilla,linear,sparse", "--models", help="Comma separated model kinds"),
+    seq_lens: str = typer.Option("512,2048", "--seq-lens", help="Comma separated sequence lengths"),
+    d_model: int = typer.Option(128, "--d-model", help="Model hidden size"),
+    n_layers: int = typer.Option(2, "--n-layers", help="Number of Transformer blocks"),
+    n_heads: int = typer.Option(4, "--n-heads", help="Number of attention heads"),
+    trials: int = typer.Option(3, "--trials", help="Number of timed trials"),
+    device: str | None = typer.Option(None, "--device", help="Device override"),
+    mlflow_uri: str | None = typer.Option(None, "--mlflow-uri", help="Optional MLflow tracking URI"),
+) -> None:
+    """Benchmark speed and memory for the selected models."""
+
+    names = [name.strip() for name in models.split(",") if name.strip()]
+    lengths = [int(value) for value in seq_lens.split(",") if value.strip()]
+    results = bench_run(
+        names,
+        lengths,
+        d_model=d_model,
+        n_layers=n_layers,
+        n_heads=n_heads,
+        trials=trials,
+        device=device,
+        mlflow_uri=mlflow_uri,
+    )
+    typer.echo(json.dumps(results, indent=2))
+    output_dir = Path("bench")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / "results.json"
+    output_path.write_text(json.dumps(results, indent=2), encoding="utf-8")
+
+
 @model_app.command("eval")
 def eval_cmd(
-    run_path: str = typer.Option(..., "--run-path", help="Path to a saved checkpoint"),
+    ckpt_path: str = typer.Option(..., "--ckpt-path", help="Path to a saved checkpoint"),
     data_dir: str = typer.Option(..., "--data-dir", help="Directory containing dev.jsonl"),
-    model: str = typer.Option("model=vanilla", "--model", help="Hydra override for the model"),
-    trainer: str = typer.Option(
-        "trainer=default", "--trainer", help="Hydra override for the trainer configuration"
-    ),
     device: str | None = typer.Option(None, "--device", help="Override evaluation device"),
 ) -> None:
     """Evaluate a checkpoint on the dev split and print loss / perplexity."""
 
-    cfg = _compose([model, trainer])
-    resolved = _to_dict(cfg)
     runner = _import_runner()
-    metrics = runner.evaluate_checkpoint(run_path, data_dir, resolved, device=device)
-    typer.echo(json.dumps(metrics, indent=2))
+    loss, ppl = runner.evaluate_ckpt(ckpt_path, data_dir, device=device)
+    typer.echo(json.dumps({"dev/loss": loss, "dev/ppl": ppl}, indent=2))

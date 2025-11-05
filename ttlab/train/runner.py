@@ -261,7 +261,7 @@ def train(
                             )
                         if torch.cuda.is_available() and device.type == "cuda":  # pragma: no cover
                             mlflow.log_metric(
-                                "memory/max_mb",
+                                "memory/peak_mb",
                                 torch.cuda.max_memory_allocated(device) / (1024 * 1024),
                                 step=step,
                             )
@@ -281,7 +281,8 @@ def train(
 
         checkpoint_dir = Path("runs")
         checkpoint_dir.mkdir(parents=True, exist_ok=True)
-        checkpoint_path = checkpoint_dir / f"vanilla_step{step}.pt"
+        model_kind = str(cfg.get("model", {}).get("kind", "model"))
+        checkpoint_path = checkpoint_dir / f"{model_kind}_step{step}.pt"
         torch.save({"model": model.state_dict(), "cfg": cfg}, checkpoint_path)
 
         if run is not None:
@@ -350,3 +351,22 @@ def evaluate_checkpoint(
     model.to(device_obj)
     dev_dataset = JsonlDataset(Path(data_dir) / "dev.jsonl")
     return evaluate(model, dev_dataset, batch_size, device=device_obj)
+
+
+@torch.no_grad()
+def evaluate_ckpt(
+    checkpoint_path: str | os.PathLike[str],
+    data_dir: str | os.PathLike[str],
+    *,
+    device: str | None = None,
+) -> tuple[float, float]:
+    """Evaluate a checkpoint using the configuration stored in the file."""
+
+    checkpoint = torch.load(checkpoint_path, map_location="cpu")
+    cfg = checkpoint.get("cfg")
+    if isinstance(cfg, DictConfig):
+        cfg = OmegaConf.to_container(cfg, resolve=True)
+    if not isinstance(cfg, Mapping):  # pragma: no cover - defensive
+        raise ValueError("Checkpoint does not contain a configuration for evaluation")
+    metrics = evaluate_checkpoint(checkpoint_path, data_dir, cfg, device=device)
+    return metrics["loss"], metrics["ppl"]

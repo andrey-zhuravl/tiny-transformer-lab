@@ -1,0 +1,16 @@
+model:
+  kind: linear
+  d_model: 128
+  n_layers: 2
+  n_heads: 4
+  ff_mult: 4
+  dropout: 0.1
+  max_seq_len: 2048
+  tie_embeddings: true
+  linear:
+    phi: elu_plus_one
+    n_features: 0
+    causal: true
+    eps: 1.0e-6
+  head:
+    kind: lm

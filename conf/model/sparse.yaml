@@ -1,0 +1,16 @@
+model:
+  kind: sparse
+  d_model: 128
+  n_layers: 2
+  n_heads: 4
+  ff_mult: 4
+  dropout: 0.1
+  max_seq_len: 2048
+  tie_embeddings: true
+  sparse:
+    pattern: sliding_window
+    window: 128
+    n_global: 4
+    causal: true
+  head:
+    kind: lm
